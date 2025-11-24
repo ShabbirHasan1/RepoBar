@@ -117,7 +117,7 @@ actor GitHubClient {
             catch let error as URLError where error.code == .fileDoesNotExist { return nil }
         }
         async let ciResult: Result<CIStatus, Error> = self.capture { try await self.ciStatus(owner: owner, name: name) }
-        async let activityResult: Result<ActivityEvent, Error> = self.capture { try await self.latestActivity(
+        async let activityResult: Result<ActivityEvent?, Error> = self.capture { try await self.latestActivity(
             owner: owner,
             name: name) }
         async let trafficResult: Result<TrafficStats, Error> = self.capture { try await self.trafficStats(
@@ -135,7 +135,7 @@ actor GitHubClient {
         let pulls = await self.value(from: prsResult, into: &accumulator) ?? 0
         let releaseREST: Release? = (await self.value(from: releaseResult, into: &accumulator)) ?? nil
         let ci = await self.value(from: ciResult, into: &accumulator) ?? .unknown
-        let activity = await self.value(from: activityResult, into: &accumulator)
+        let activity: ActivityEvent? = await self.value(from: activityResult, into: &accumulator) ?? nil
         let traffic = await self.value(from: trafficResult, into: &accumulator)
         let heatmap = await self.value(from: heatmapResult, into: &accumulator) ?? []
 
@@ -145,7 +145,7 @@ actor GitHubClient {
         let finalIssues = graph?.openIssues ?? issues
         let finalPulls = graph?.openPulls ?? pulls
         let finalRelease = graph?.release ?? releaseREST
-        let finalActivity = graph?.activity ?? activity
+        let finalActivity: ActivityEvent? = graph?.activity ?? activity
 
         return Repository(
             id: "\(details.id)",
@@ -304,7 +304,7 @@ actor GitHubClient {
         }
     }
 
-    private func latestActivity(owner: String, name: String) async throws -> ActivityEvent {
+    private func latestActivity(owner: String, name: String) async throws -> ActivityEvent? {
         let token = try await validAccessToken()
         async let issueComment = self.latestComment(
             from: self.apiHost.appending(path: "/repos/\(owner)/\(name)/issues/comments"),
@@ -315,12 +315,10 @@ actor GitHubClient {
         let candidates = await [try? issueComment, try? reviewComment]
             .compactMap(\.self)
             .sorted(by: { $0.date > $1.date })
-        guard let newest = candidates.first
-        else { throw URLError(.cannotParseResponse) }
-        return newest
+        return candidates.first
     }
 
-    private func latestComment(from url: URL, token: String) async throws -> ActivityEvent {
+    private func latestComment(from url: URL, token: String) async throws -> ActivityEvent? {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "per_page", value: "1"),
@@ -329,7 +327,7 @@ actor GitHubClient {
         ]
         let (data, _) = try await authorizedGet(url: components.url!, token: token)
         let decoded = try jsonDecoder.decode([CommentResponse].self, from: data)
-        guard let comment = decoded.first else { throw URLError(.cannotParseResponse) }
+        guard let comment = decoded.first else { return nil }
         return ActivityEvent(
             title: comment.bodyPreview,
             actor: comment.user.login,

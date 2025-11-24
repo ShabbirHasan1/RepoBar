@@ -44,6 +44,12 @@ struct RefreshAndBackoffTests {
     }
 
     @Test
+    func mapsCannotParseResponse() {
+        let error = URLError(.cannotParseResponse)
+        #expect(error.userFacingMessage == "GitHub returned an unexpected response.")
+    }
+
+    @Test
     func loopbackParsesCodeAndState() {
         let request = "GET /callback?code=abc&state=xyz HTTP/1.1\r\nHost: 127.0.0.1:53682\r\n\r\n"
         let parsed = LoopbackServer.parse(request: request)

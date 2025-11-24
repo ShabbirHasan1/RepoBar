@@ -8,6 +8,7 @@ final class OAuthCoordinator {
     private let tokenStore = TokenStore()
     private let logger = Logger(subsystem: "com.steipete.repobar", category: "oauth")
     private var lastHost: URL = .init(string: "https://github.com")!
+    private var appJWT: String?
 
     func login(clientID: String, clientSecret: String, pemPath: String, host: URL, loopbackPort: Int) async throws {
         let normalizedHost = try normalize(host: host)
@@ -15,8 +16,8 @@ final class OAuthCoordinator {
             let exists = FileManager.default.fileExists(atPath: pemPath)
             guard exists else { throw GitHubAPIError.invalidPEM }
             let pem = try String(contentsOfFile: pemPath, encoding: .utf8)
-            let appJWT = try? JWTSigner.sign(appID: "2344358", pemString: pem)
-            await DiagnosticsLogger.shared.message("Using PEM at \(pemPath); JWT generated: \(appJWT != nil)")
+            self.appJWT = try? JWTSigner.sign(appID: "2344358", pemString: pem)
+            await DiagnosticsLogger.shared.message("Using PEM at \(pemPath); JWT generated: \(self.appJWT != nil)")
         } else {
             await DiagnosticsLogger.shared.message("No PEM provided; continuing with client secret only.")
         }
@@ -111,6 +112,37 @@ final class OAuthCoordinator {
             expiresAt: expires)
         try self.tokenStore.save(tokens: tokens)
         return tokens
+    }
+
+    // MARK: - Installation token
+
+    func installationToken(for installationID: String) async throws -> String {
+        guard let jwt = self.appJWT else { throw GitHubAPIError.invalidPEM }
+        let url = self.lastHost.appending(path: "/app/installations/\(installationID)/access_tokens")
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(jwt)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 201 else {
+            throw URLError(.badServerResponse)
+        }
+        let decoded = try JSONDecoder().decode(InstallationTokenResponse.self, from: data)
+        try self.tokenStore.save(tokens: OAuthTokens(
+            accessToken: decoded.token,
+            refreshToken: "",
+            expiresAt: decoded.expiresAt))
+        return decoded.token
+    }
+
+    private struct InstallationTokenResponse: Decodable {
+        let token: String
+        let expiresAt: Date
+
+        enum CodingKeys: String, CodingKey {
+            case token
+            case expiresAt = "expires_at"
+        }
     }
 
     private func normalize(host: URL) throws -> URL {

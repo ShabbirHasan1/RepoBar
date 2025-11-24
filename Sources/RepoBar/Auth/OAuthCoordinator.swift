@@ -169,6 +169,7 @@ struct Installation: Decodable {
 
     struct Account: Decodable {
         let login: String
+        let url: URL?
     }
 }
 

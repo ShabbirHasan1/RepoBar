@@ -18,6 +18,8 @@ actor GitHubClient {
     private var tokenProvider: (@Sendable () async throws -> OAuthTokens?)?
     private let graphQL = GraphQLClient()
     private let diag = DiagnosticsLogger.shared
+    private var prefetchedRepos: [Repository] = []
+    private var prefetchedReposExpiry: Date?
 
     // MARK: - Config
 
@@ -219,6 +221,8 @@ actor GitHubClient {
         await self.backoff.clear()
         self.lastRateLimitReset = nil
         self.lastRateLimitError = nil
+        self.prefetchedRepos = []
+        self.prefetchedReposExpiry = nil
     }
 
     func diagnostics() async -> DiagnosticsSummary {
@@ -269,6 +273,65 @@ actor GitHubClient {
         ]
         let (data, _) = try await authorizedGet(url: components.url!, token: token)
         return try self.jsonDecoder.decode([RepoItem].self, from: data)
+    }
+
+    /// Prefetch up to `RepoCacheConstants.maxRepositoriesToPrefetch` repos once per hour for fast autocomplete.
+    func prefetchedRepositories(
+        max: Int = RepoCacheConstants.maxRepositoriesToPrefetch
+    ) async throws -> [Repository] {
+        let now = Date()
+        if let expires = self.prefetchedReposExpiry, expires > now, !self.prefetchedRepos.isEmpty {
+            return Array(self.prefetchedRepos.prefix(max))
+        }
+
+        let repos = try await self.userReposPaginated(limit: max)
+        self.prefetchedRepos = repos
+        self.prefetchedReposExpiry = now.addingTimeInterval(RepoCacheConstants.cacheTTL)
+        return repos
+    }
+
+    /// Pulls paginated `/user/repos` in 100-item pages until the limit is reached or GitHub runs out.
+    private func userReposPaginated(limit: Int) async throws -> [Repository] {
+        let pageSize = 100 // GitHub maximum.
+        let totalPages = Int(ceil(Double(limit) / Double(pageSize)))
+        var collected: [RepoItem] = []
+
+        for page in 1 ... totalPages {
+            let token = try await validAccessToken()
+            var components = URLComponents(url: apiHost.appending(path: "/user/repos"), resolvingAgainstBaseURL: false)!
+            components.queryItems = [
+                URLQueryItem(name: "per_page", value: "\(pageSize)"),
+                URLQueryItem(name: "page", value: "\(page)"),
+                URLQueryItem(name: "sort", value: "pushed"),
+                URLQueryItem(name: "direction", value: "desc")
+            ]
+            let (data, _) = try await authorizedGet(url: components.url!, token: token)
+            let items = try self.jsonDecoder.decode([RepoItem].self, from: data)
+            collected.append(contentsOf: items)
+
+            if collected.count >= limit || items.count < pageSize {
+                break // Hit requested limit or GitHub returned a short page.
+            }
+        }
+
+        let trimmed = Array(collected.prefix(limit))
+        return trimmed.map { item in
+            Repository(
+                id: item.id.description,
+                name: item.name,
+                owner: item.owner.login,
+                sortOrder: nil,
+                error: nil,
+                rateLimitedUntil: nil,
+                ciStatus: .unknown,
+                openIssues: item.openIssuesCount,
+                openPulls: 0,
+                latestRelease: nil,
+                latestActivity: nil,
+                traffic: nil,
+                heatmap: []
+            )
+        }
     }
 
     private func repoDetails(owner: String, name: String) async throws -> RepoItem {

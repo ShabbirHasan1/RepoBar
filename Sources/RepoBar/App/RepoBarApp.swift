@@ -237,6 +237,29 @@ final class AppState: ObservableObject {
         await self.refresh()
     }
 
+    /// Sets a repository's visibility in one place, keeping pinned/hidden arrays consistent.
+    func setVisibility(for fullName: String, to visibility: RepoVisibility) async {
+        // Always trim first to avoid storing whitespace variants.
+        let trimmed = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        // Remove from both buckets before re-adding.
+        self.session.settings.pinnedRepositories.removeAll { $0 == trimmed }
+        self.session.settings.hiddenRepositories.removeAll { $0 == trimmed }
+
+        switch visibility {
+        case .pinned:
+            self.session.settings.pinnedRepositories.append(trimmed)
+        case .hidden:
+            self.session.settings.hiddenRepositories.append(trimmed)
+        case .visible:
+            break
+        }
+
+        self.settingsStore.save(self.session.settings)
+        await self.refresh()
+    }
+
     func diagnostics() async -> DiagnosticsSummary {
         await self.github.diagnostics()
     }

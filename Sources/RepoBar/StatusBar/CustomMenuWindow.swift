@@ -104,8 +104,7 @@ final class CustomMenuWindow: NSWindow {
                 let mouseLocation = NSEvent.mouseLocation
 
                 // Allow re-clicking the status bar button to dismiss.
-                if let button = self.statusBarButton,
-                   let buttonWindow = button.window {
+                if let button = self.statusBarButton, let buttonWindow = button.window {
                     let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
                     if buttonFrame.contains(mouseLocation) {
                         self.hide()

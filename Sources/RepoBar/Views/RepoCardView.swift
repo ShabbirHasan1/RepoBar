@@ -85,11 +85,30 @@ struct RepoCardView: View {
     @ViewBuilder
     private var stats: some View {
         HStack(spacing: 10) {
-            CIBadge(status: self.repo.ciStatus, runCount: self.repo.ciRunCount)
-            StatBadge(text: "Issues", value: self.repo.issues)
-            StatBadge(text: "PRs", value: self.repo.pulls)
-            if let visitors = repo.trafficVisitors { StatBadge(text: "Visitors", value: visitors) }
-            if let cloners = repo.trafficCloners { StatBadge(text: "Cloners", value: cloners) }
+            LinkBadge(
+                text: "CI",
+                valueText: self.repo.ciRunCount.map(String.init),
+                color: self.ciColor,
+                action: { self.open(url: self.actionsURL()) }
+            )
+            LinkBadge(
+                text: "Issues",
+                valueText: "\(self.repo.issues)",
+                color: Color(nsColor: .windowBackgroundColor),
+                action: { self.open(url: self.issuesURL()) }
+            )
+            LinkBadge(
+                text: "PRs",
+                valueText: "\(self.repo.pulls)",
+                color: Color(nsColor: .windowBackgroundColor),
+                action: { self.open(url: self.pullsURL()) }
+            )
+            if let visitors = repo.trafficVisitors {
+                StatBadge(text: "Visitors", value: visitors)
+            }
+            if let cloners = repo.trafficCloners {
+                StatBadge(text: "Cloners", value: cloners)
+            }
         }
     }
 
@@ -142,12 +161,32 @@ struct RepoCardView: View {
         case .compact: 8
         }
     }
+
+    private var ciColor: Color {
+        switch self.repo.ciStatus {
+        case .passing: .green
+        case .failing: .red
+        case .pending: .yellow
+        case .unknown: .gray
+        }
+    }
+
+    private func issuesURL() -> URL {
+        URL(string: "https://github.com/\(self.repo.title)/issues")!
+    }
+
+    private func pullsURL() -> URL {
+        URL(string: "https://github.com/\(self.repo.title)/pulls")!
+    }
+
+    private func actionsURL() -> URL {
+        URL(string: "https://github.com/\(self.repo.title)/actions")!
+    }
 }
 
 private struct CIBadge: View {
     let status: CIStatus
     let runCount: Int?
-
     var body: some View {
         HStack(spacing: 6) {
             Circle()
@@ -172,23 +211,8 @@ private struct CIBadge: View {
         .help(self.helpText)
     }
 
-    private var color: Color {
-        switch self.status {
-        case .passing: .green
-        case .failing: .red
-        case .pending: .yellow
-        case .unknown: .gray
-        }
-    }
-
-    private var helpText: String {
-        switch self.status {
-        case .passing: "Latest CI run passing"
-        case .failing: "Latest CI run failing"
-        case .pending: "Latest CI run in progress"
-        case .unknown: "CI status unknown"
-        }
-    }
+    private var color: Color { .clear }
+    private var helpText: String { "" }
 }
 
 struct StatBadge: View {
@@ -206,5 +230,35 @@ struct StatBadge: View {
         .padding(.vertical, 4)
         .background(Color(nsColor: .windowBackgroundColor))
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
+private struct LinkBadge: View {
+    let text: String
+    let valueText: String?
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: self.action) {
+            HStack(spacing: 4) {
+                Text(self.text)
+                    .font(.caption2)
+                if let valueText {
+                    Text(valueText)
+                        .font(.caption2).bold()
+                }
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(self.color.opacity(0.18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(self.color.opacity(0.35), lineWidth: 1)
+            )
+            .foregroundStyle(self.color == Color(nsColor: .windowBackgroundColor) ? .primary : self.color)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }

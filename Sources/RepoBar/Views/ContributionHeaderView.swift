@@ -6,7 +6,7 @@ struct ContributionHeaderView: View {
     @EnvironmentObject var appState: AppState
 
     var body: some View {
-        if let username {
+        if let username, self.session.settings.showHeatmap {
             VStack(alignment: .leading, spacing: 8) {
                 if self.session.contributionHeatmap.isEmpty {
                     self.placeholderOverlay

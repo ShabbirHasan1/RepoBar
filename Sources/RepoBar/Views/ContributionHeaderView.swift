@@ -2,27 +2,23 @@ import SwiftUI
 
 struct ContributionHeaderView: View {
     let username: String?
+    @EnvironmentObject var session: Session
+    @EnvironmentObject var appState: AppState
 
     var body: some View {
         if let username {
-            AsyncImage(url: URL(string: "https://ghchart.rshah.org/\(username)")) { phase in
-                switch phase {
-                case .empty:
+            VStack(alignment: .leading, spacing: 8) {
+                if self.session.contributionHeatmap.isEmpty {
                     self.placeholderOverlay
-                case let .success(image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: 500)
+                } else {
+                    HeatmapView(cells: self.session.contributionHeatmap, accentTone: self.session.settings.accentTone)
+                        .frame(maxWidth: .infinity, minHeight: 80, maxHeight: 120, alignment: .leading)
                         .accessibilityLabel("Contribution graph for \(username)")
-                case .failure:
-                    self.placeholderOverlay
-                @unknown default:
-                    self.placeholderOverlay
                 }
             }
-            .frame(height: 110)
-            .accessibilityElement(children: .contain)
+            .task {
+                await self.appState.loadContributionHeatmapIfNeeded(for: username)
+            }
         }
     }
 

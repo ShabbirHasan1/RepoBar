@@ -272,6 +272,26 @@ final class AppState: ObservableObject {
         self.settingsStore.save(self.session.settings)
     }
 
+    /// Preloads the user's contribution heatmap so the header can render without remote images.
+    func loadContributionHeatmapIfNeeded(for username: String) async {
+        guard self.session.settings.showContributionHeader else { return }
+        if self.session.contributionUser == username, !self.session.contributionHeatmap.isEmpty {
+            return
+        }
+        do {
+            let cells = try await self.github.userContributionHeatmap(login: username)
+            await MainActor.run {
+                self.session.contributionUser = username
+                self.session.contributionHeatmap = cells
+            }
+        } catch {
+            await MainActor.run {
+                self.session.contributionHeatmap = []
+                self.session.contributionUser = username
+            }
+        }
+    }
+
     nonisolated static func selectVisible(
         all repos: [Repository],
         pinned: [String],
@@ -322,6 +342,8 @@ final class Session: ObservableObject {
     @Published var settings = UserSettings()
     @Published var rateLimitReset: Date?
     @Published var lastError: String?
+    @Published var contributionHeatmap: [HeatmapCell] = []
+    @Published var contributionUser: String?
 }
 
 enum AccountState: Equatable {

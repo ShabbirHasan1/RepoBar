@@ -259,6 +259,11 @@ actor GitHubClient {
         }
     }
 
+    /// Contribution heatmap for a user (year view), used to render the header without fetching remote images.
+    func userContributionHeatmap(login: String) async throws -> [HeatmapCell] {
+        try await self.graphQL.userContributionHeatmap(login: login)
+    }
+
     // MARK: - Internal REST helpers
 
     private enum CountType { case issue, pullRequest }

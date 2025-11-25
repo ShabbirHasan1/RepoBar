@@ -5,4 +5,6 @@ if ! command -v swiftlint >/dev/null 2>&1; then
   echo "swiftlint not installed. Install via 'brew install swiftlint'" >&2
   exit 1
 fi
-swiftlint lint --quiet --path "$ROOT_DIR/Sources"
+CONFIG="$ROOT_DIR/.swiftlint.yml"
+# Older SwiftLint builds lack --path; pass the path positionally for compatibility.
+swiftlint lint --quiet --config "$CONFIG" "$ROOT_DIR/Sources"

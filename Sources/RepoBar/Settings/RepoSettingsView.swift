@@ -154,7 +154,9 @@ private struct RepoInputRow<Accessory: View>: View {
                         .focused(self.$isFocused)
                         .onChange(of: self.text) { _, _ in self.scheduleSearch() }
                         .onSubmit { self.commit() }
-                        .onTapGesture { self.showSuggestions = true; self.scheduleSearch(immediate: true) }
+                        .onTapGesture { self.showSuggestions = true
+                            self.scheduleSearch(immediate: true)
+                        }
 
                     self.accessory()
 
@@ -167,7 +169,7 @@ private struct RepoInputRow<Accessory: View>: View {
                 }
             }
 
-            if self.showSuggestions && !self.suggestions.isEmpty {
+            if self.showSuggestions, !self.suggestions.isEmpty {
                 VStack(spacing: 0) {
                     ForEach(self.suggestions) { repo in
                         Button {

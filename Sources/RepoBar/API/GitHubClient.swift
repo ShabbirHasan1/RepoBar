@@ -120,8 +120,11 @@ actor GitHubClient {
             type: .pullRequest
         ) }
         async let releaseResult: Result<Release?, Error> = self.capture {
-            do { return try await self.latestRelease(owner: owner, name: name) }
-            catch let error as URLError where error.code == .fileDoesNotExist { return nil }
+            do {
+                return try await self.latestRelease(owner: owner, name: name)
+            } catch let error as URLError where error.code == .fileDoesNotExist {
+                return nil
+            }
         }
         async let ciResult: Result<CIStatus, Error> = self.capture { try await self.ciStatus(owner: owner, name: name) }
         async let activityResult: Result<ActivityEvent?, Error> = self.capture { try await self.latestActivity(
@@ -144,9 +147,9 @@ actor GitHubClient {
 
         let issues = await self.value(from: issuesResult, into: &accumulator) ?? details.openIssuesCount
         let pulls = await self.value(from: prsResult, into: &accumulator) ?? 0
-        let releaseREST: Release? = await (self.value(from: releaseResult, into: &accumulator)) ?? nil
+        let releaseREST: Release? = await self.value(from: releaseResult, into: &accumulator) ?? nil // swiftlint:disable:this redundant_nil_coalescing
         let ci = await self.value(from: ciResult, into: &accumulator) ?? .unknown
-        let activity: ActivityEvent? = await self.value(from: activityResult, into: &accumulator) ?? nil
+        let activity: ActivityEvent? = await self.value(from: activityResult, into: &accumulator) ?? nil // swiftlint:disable:this redundant_nil_coalescing
         let traffic = await self.value(from: trafficResult, into: &accumulator)
         let heatmap = await self.value(from: heatmapResult, into: &accumulator) ?? []
 

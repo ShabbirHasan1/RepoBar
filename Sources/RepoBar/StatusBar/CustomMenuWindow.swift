@@ -43,7 +43,7 @@ final class CustomMenuWindow: NSWindow {
             hosting.leadingAnchor.constraint(equalTo: blur.leadingAnchor),
             hosting.trailingAnchor.constraint(equalTo: blur.trailingAnchor),
             hosting.topAnchor.constraint(equalTo: blur.topAnchor),
-            hosting.bottomAnchor.constraint(equalTo: blur.bottomAnchor),
+            hosting.bottomAnchor.constraint(equalTo: blur.bottomAnchor)
         ])
     }
 
@@ -105,8 +105,7 @@ final class CustomMenuWindow: NSWindow {
 
                 // Allow re-clicking the status bar button to dismiss.
                 if let button = self.statusBarButton,
-                   let buttonWindow = button.window
-                {
+                   let buttonWindow = button.window {
                     let buttonFrame = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
                     if buttonFrame.contains(mouseLocation) {
                         self.hide()

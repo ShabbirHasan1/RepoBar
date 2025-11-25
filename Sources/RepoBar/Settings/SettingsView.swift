@@ -313,7 +313,7 @@ struct AccountSettingsView: View {
     var body: some View {
         Form {
             Section("GitHub.com") {
-                switch session.account {
+                switch self.session.account {
                 case let .loggedIn(user):
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Signed in as \(user.username) on \(user.host.host ?? "github.com")")

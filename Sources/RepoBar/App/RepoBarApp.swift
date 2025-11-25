@@ -297,9 +297,7 @@ final class AppState: ObservableObject {
         pinned: [String],
         hidden: Set<String>,
         limit: Int
-    )
-        -> [Repository]
-    {
+    ) -> [Repository] {
         let filtered = repos.filter { !hidden.contains($0.fullName) }
         let limited = Array(filtered.prefix(max(limit, 0)))
         return limited.sorted { lhs, rhs in

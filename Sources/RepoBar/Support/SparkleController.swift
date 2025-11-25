@@ -15,16 +15,16 @@ final class DisabledUpdaterController: UpdaterProviding {
 }
 
 #if canImport(Sparkle)
-import Sparkle
+    import Sparkle
 
-extension SPUStandardUpdaterController: UpdaterProviding {
-    var automaticallyChecksForUpdates: Bool {
-        get { self.updater.automaticallyChecksForUpdates }
-        set { self.updater.automaticallyChecksForUpdates = newValue }
+    extension SPUStandardUpdaterController: UpdaterProviding {
+        var automaticallyChecksForUpdates: Bool {
+            get { self.updater.automaticallyChecksForUpdates }
+            set { self.updater.automaticallyChecksForUpdates = newValue }
+        }
+
+        var isAvailable: Bool { true }
     }
-
-    var isAvailable: Bool { true }
-}
 #endif
 
 /// Simple Sparkle wrapper so we can call from menus without passing around the updater.
@@ -40,7 +40,7 @@ final class SparkleController {
             let isBundledApp = bundleURL.pathExtension == "app"
             let isSigned = SparkleController.isDeveloperIDSigned(bundleURL: bundleURL)
             if isBundledApp, isSigned {
-                let saved = (UserDefaults.standard.object(forKey: defaultsKey) as? Bool) ?? true
+                let saved = (UserDefaults.standard.object(forKey: self.defaultsKey) as? Bool) ?? true
                 let controller = SPUStandardUpdaterController(
                     startingUpdater: false,
                     updaterDelegate: nil,

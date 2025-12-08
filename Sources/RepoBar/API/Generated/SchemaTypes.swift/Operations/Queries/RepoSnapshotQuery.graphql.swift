@@ -2,9 +2,10 @@
 // This file was automatically generated and should not be edited.
 
 @_exported import ApolloAPI
+@_spi(Execution) @_spi(Unsafe) import ApolloAPI
 
 extension RepoBarGraphQL {
-  class RepoSnapshotQuery: GraphQLQuery {
+  struct RepoSnapshotQuery: GraphQLQuery {
     static let operationName: String = "RepoSnapshot"
     static let operationDocument: ApolloAPI.OperationDocument = .init(
       definition: .init(
@@ -22,7 +23,7 @@ extension RepoBarGraphQL {
       self.name = name
     }
 
-    public var __variables: Variables? { [
+    @_spi(Unsafe) public var __variables: Variables? { [
       "owner": owner,
       "name": name
     ] }

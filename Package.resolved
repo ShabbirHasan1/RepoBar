@@ -1,13 +1,13 @@
 {
-  "originHash" : "5e08c41e8dc71fd6d728bacd1d667d21353c365b7139ace4e0c31abd1de9232d",
+  "originHash" : "5ba1c0c261d3efe89630aa343294a2704cd0b2d8bba7ecbd3df6df431ab6c0b2",
   "pins" : [
     {
       "identity" : "apollo-ios",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apollographql/apollo-ios",
       "state" : {
-        "revision" : "1abd62f6cbc8c1f4405919d7eb6cd8e96967b07c",
-        "version" : "1.25.3"
+        "revision" : "68aba4be6a951a26f2f587e132ed8f82b5a63511",
+        "version" : "2.0.4"
       }
     },
     {
@@ -15,8 +15,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/openid/AppAuth-iOS",
       "state" : {
-        "revision" : "2781038865a80e2c425a1da12cc1327bcd56501f",
-        "version" : "1.7.6"
+        "revision" : "145104f5ea9d58ae21b60add007c33c1cc0c948e",
+        "version" : "2.0.0"
       }
     },
     {

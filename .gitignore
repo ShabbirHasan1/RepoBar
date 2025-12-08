@@ -61,3 +61,22 @@ fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
 Config/Local.xcconfig
+
+# macOS user cruft
+.DS_Store
+
+# Derived data and Xcode intermediates
+DerivedData/
+*.xcuserstate
+*.xcuserdatad
+*.xcworkspace/xcuserdata
+
+# Swift Package Manager artifacts
+.swiftpm/
+.build/
+
+# Editor / tooling
+.vscode/
+*.swp
+*.swo
+*.idea/

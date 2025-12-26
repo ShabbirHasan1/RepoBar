@@ -17,6 +17,7 @@ struct RepoOutput: Codable {
     let openPulls: Int
     let stars: Int
     let pushedAt: Date?
+    let latestRelease: Release?
     let activityDate: Date?
     let activityTitle: String?
     let activityActor: String?
@@ -45,12 +46,33 @@ func renderTable(
     _ rows: [RepoRow],
     useColor: Bool,
     includeURL: Bool,
+    includeRelease: Bool,
     baseHost: URL
 ) {
+    for line in tableLines(
+        rows,
+        useColor: useColor,
+        includeURL: includeURL,
+        includeRelease: includeRelease,
+        baseHost: baseHost
+    ) {
+        print(line)
+    }
+}
+
+func tableLines(
+    _ rows: [RepoRow],
+    useColor: Bool,
+    includeURL: Bool,
+    includeRelease: Bool,
+    baseHost: URL
+) -> [String] {
     let activityHeader = "ACTIVITY"
     let issuesHeader = "ISSUES"
     let pullsHeader = "PR"
     let starsHeader = "STAR"
+    let releaseHeader = "REL"
+    let releasedHeader = "RELEASED"
     let repoHeader = "REPO"
     let eventHeader = "EVENT"
 
@@ -58,22 +80,37 @@ func renderTable(
     let pullsWidth = max(pullsHeader.count, rows.map { String($0.repo.openPulls).count }.max() ?? 1)
     let starsWidth = max(starsHeader.count, rows.map { String($0.repo.stars).count }.max() ?? 1)
     let activityWidth = max(activityHeader.count, rows.map(\.activityLabel.count).max() ?? 1)
+    let releaseWidth = max(releaseHeader.count, rows.map { $0.repo.latestRelease?.tag.count ?? 1 }.max() ?? 1)
+    let releasedWidth = max(
+        releasedHeader.count,
+        rows.map { $0.repo.latestRelease.map { formatDateYYYYMMDD($0.publishedAt).count } ?? 1 }.max() ?? 1
+    )
 
-    let header = [
+    var headerParts = [
         padRight(activityHeader, to: activityWidth),
         padLeft(issuesHeader, to: issuesWidth),
         padLeft(pullsHeader, to: pullsWidth),
-        padLeft(starsHeader, to: starsWidth),
-        repoHeader,
-        eventHeader
-    ].joined(separator: "  ")
-    print(useColor ? Ansi.bold.wrap(header) : header)
+        padLeft(starsHeader, to: starsWidth)
+    ]
+    if includeRelease {
+        headerParts.append(padRight(releaseHeader, to: releaseWidth))
+        headerParts.append(padRight(releasedHeader, to: releasedWidth))
+    }
+    headerParts.append(repoHeader)
+    headerParts.append(eventHeader)
+
+    let header = headerParts.joined(separator: "  ")
+
+    var lines: [String] = []
+    lines.append(useColor ? Ansi.bold.wrap(header) : header)
 
     for row in rows {
         let issues = padLeft(String(row.repo.openIssues), to: issuesWidth)
         let pulls = padLeft(String(row.repo.openPulls), to: pullsWidth)
         let stars = padLeft(String(row.repo.stars), to: starsWidth)
         let activity = padRight(row.activityLabel, to: activityWidth)
+        let rel = padRight(row.repo.latestRelease?.tag ?? "-", to: releaseWidth)
+        let released = padRight(row.repo.latestRelease.map { formatDateYYYYMMDD($0.publishedAt) } ?? "-", to: releasedWidth)
         let repoName = row.repo.fullName
         let repoURL = makeRepoURL(baseHost: baseHost, repo: row.repo)
         let repoLabel = formatRepoLabel(
@@ -95,27 +132,37 @@ func renderTable(
         let coloredIssues = useColor ? (row.repo.openIssues > 0 ? Ansi.red.wrap(issues) : Ansi.gray.wrap(issues)) : issues
         let coloredPulls = useColor ? (row.repo.openPulls > 0 ? Ansi.magenta.wrap(pulls) : Ansi.gray.wrap(pulls)) : pulls
         let coloredStars = useColor ? (row.repo.stars > 0 ? Ansi.yellow.wrap(stars) : Ansi.gray.wrap(stars)) : stars
+        let coloredRel = useColor ? (row.repo.latestRelease == nil ? Ansi.gray.wrap(rel) : rel) : rel
+        let coloredReleased = useColor ? (row.repo.latestRelease == nil ? Ansi.gray.wrap(released) : released) : released
         let coloredRepo = useColor ? Ansi.cyan.wrap(repoLabel) : repoLabel
         let coloredLine = useColor && row.repo.error != nil ? Ansi.red.wrap(line) : line
 
-        let output = [
+        var outputParts = [
             coloredActivity,
             coloredIssues,
             coloredPulls,
-            coloredStars,
-            coloredRepo,
-            coloredLine
-        ].joined(separator: "  ")
-        print(output)
+            coloredStars
+        ]
+        if includeRelease {
+            outputParts.append(coloredRel)
+            outputParts.append(coloredReleased)
+        }
+        outputParts.append(coloredRepo)
+        outputParts.append(coloredLine)
+
+        let output = outputParts.joined(separator: "  ")
+        lines.append(output)
 
         if let error = row.repo.error {
             let message = "  ! \(error)"
-            print(useColor ? Ansi.red.wrap(message) : message)
+            lines.append(useColor ? Ansi.red.wrap(message) : message)
         }
     }
+
+    return lines
 }
 
-func renderJSON(_ rows: [RepoRow], baseHost: URL) throws {
+func renderJSONData(_ rows: [RepoRow], baseHost: URL) throws -> Data {
     let items = rows.map { row in
         RepoOutput(
             fullName: row.repo.fullName,
@@ -126,6 +173,7 @@ func renderJSON(_ rows: [RepoRow], baseHost: URL) throws {
             openPulls: row.repo.openPulls,
             stars: row.repo.stars,
             pushedAt: row.repo.pushedAt,
+            latestRelease: row.repo.latestRelease,
             activityDate: row.activityDate,
             activityTitle: row.repo.latestActivity?.title,
             activityActor: row.repo.latestActivity?.actor,
@@ -135,10 +183,12 @@ func renderJSON(_ rows: [RepoRow], baseHost: URL) throws {
     }
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    let data = try encoder.encode(items)
-    if let json = String(data: data, encoding: .utf8) {
-        print(json)
-    }
+    return try encoder.encode(items)
+}
+
+func renderJSON(_ rows: [RepoRow], baseHost: URL) throws {
+    let data = try renderJSONData(rows, baseHost: baseHost)
+    if let json = String(data: data, encoding: .utf8) { print(json) }
 }
 
 func padLeft(_ value: String, to width: Int) -> String {
@@ -179,4 +229,18 @@ func formatURL(_ url: URL, linkEnabled: Bool) -> String {
         return Ansi.link(url.absoluteString, url: url, enabled: true)
     }
     return url.absoluteString
+}
+
+func formatDateYYYYMMDD(_ date: Date) -> String {
+    DateFormatters.yyyyMMdd.string(from: date)
+}
+
+private enum DateFormatters {
+    static let yyyyMMdd: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
 }

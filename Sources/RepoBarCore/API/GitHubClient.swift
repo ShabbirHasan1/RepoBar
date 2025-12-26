@@ -84,6 +84,15 @@ public actor GitHubClient {
         return try await self.expandActivityItems(filtered)
     }
 
+    /// Latest release (including prereleases). Returns `nil` if the repo has no releases.
+    public func latestRelease(owner: String, name: String) async throws -> Release? {
+        do {
+            return try await self.latestReleaseAny(owner: owner, name: name)
+        } catch let error as URLError where error.code == .fileDoesNotExist {
+            return nil
+        }
+    }
+
     private func expandRepoItems(_ items: [RepoItem]) async throws -> [Repository] {
         try await withThrowingTaskGroup(of: Repository.self) { group in
             for repo in items {

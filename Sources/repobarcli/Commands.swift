@@ -34,6 +34,9 @@ struct ReposCommand: CommanderRunnableCommand {
     @Flag(names: [.customLong("url")], help: "Include clickable URLs in output")
     var includeURL: Bool = false
 
+    @Flag(names: [.customLong("release")], help: "Include latest release tag and date")
+    var includeRelease: Bool = false
+
     @Option(name: .customLong("sort"), help: "Sort by activity, issues, prs, stars, repo, or event")
     var sort: RepositorySortKey = .activity
 
@@ -53,6 +56,7 @@ struct ReposCommand: CommanderRunnableCommand {
         self.age = try values.decodeOption("age") ?? 365
         self.sort = try values.decodeOption("sort") ?? .activity
         self.includeURL = values.flag("includeURL")
+        self.includeRelease = values.flag("includeRelease")
     }
 
     mutating func run() async throws {
@@ -93,7 +97,10 @@ struct ReposCommand: CommanderRunnableCommand {
             guard let date = repo.activityDate else { return false }
             return date >= cutoff
         }
-        let sorted = RepositorySort.sorted(filtered, sortKey: self.sort)
+        var sorted = RepositorySort.sorted(filtered, sortKey: self.sort)
+        if self.includeRelease {
+            sorted = try await self.attachLatestReleases(to: sorted, client: client)
+        }
         let rows = prepareRows(repos: sorted, now: now)
 
         let baseHost = settings.enterpriseHost ?? settings.githubHost
@@ -105,9 +112,50 @@ struct ReposCommand: CommanderRunnableCommand {
                 rows,
                 useColor: self.output.useColor,
                 includeURL: self.includeURL,
+                includeRelease: self.includeRelease,
                 baseHost: baseHost
             )
         }
+    }
+
+    private func attachLatestReleases(to repos: [Repository], client: GitHubClient) async throws -> [Repository] {
+        try await withThrowingTaskGroup(of: (Int, Repository).self) { group in
+            for (index, repo) in repos.enumerated() {
+                group.addTask {
+                    var updated = repo
+                    do {
+                        updated.latestRelease = try await client.latestRelease(owner: repo.owner, name: repo.name)
+                    } catch {
+                        if updated.error == nil {
+                            updated.error = "Release: \(error.userFacingMessage)"
+                        }
+                        if let gh = error as? GitHubAPIError {
+                            updated.rateLimitedUntil = maxDate(updated.rateLimitedUntil, gh.rateLimitedUntil ?? gh.retryAfter)
+                        }
+                    }
+                    return (index, updated)
+                }
+            }
+
+            var results: [Repository?] = Array(repeating: nil, count: repos.count)
+            for try await (index, repo) in group {
+                results[index] = repo
+            }
+            return results.compactMap(\.self)
+        }
+    }
+}
+
+private func maxDate(_ lhs: Date?, _ rhs: Date?) -> Date? {
+    switch (lhs, rhs) {
+    case (nil, nil):
+        nil
+    case (nil, let rhs?):
+        rhs
+    case (let lhs?, nil):
+        lhs
+    case let (lhs?, rhs?):
+        max(lhs, rhs)
     }
 }
 

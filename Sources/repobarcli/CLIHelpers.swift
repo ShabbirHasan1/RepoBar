@@ -222,7 +222,7 @@ func printHelp(_ target: HelpTarget) {
         repobarcli - list repositories by activity, issues, PRs, stars
 
         Usage:
-          repobarcli [repos] [--limit N] [--age DAYS] [--url] [--json] [--sort KEY]
+          repobarcli [repos] [--limit N] [--age DAYS] [--url] [--release] [--json] [--sort KEY]
           repobarcli login [--host URL] [--client-id ID] [--client-secret SECRET] [--loopback-port PORT]
           repobarcli logout
           repobarcli status [--json]
@@ -231,6 +231,7 @@ func printHelp(_ target: HelpTarget) {
           --limit N    Max repositories to fetch (default: all accessible)
           --age DAYS   Only show repos with activity in the last N days (default: 365)
           --url        Include clickable URLs in output
+          --release    Include latest release tag and date
           --json       Output JSON instead of formatted table
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event
           --no-color   Disable color output
@@ -241,12 +242,13 @@ func printHelp(_ target: HelpTarget) {
         repobarcli repos - list repositories
 
         Usage:
-          repobarcli repos [--limit N] [--age DAYS] [--url] [--json] [--sort KEY]
+          repobarcli repos [--limit N] [--age DAYS] [--url] [--release] [--json] [--sort KEY]
 
         Options:
           --limit N    Max repositories to fetch (default: all accessible)
           --age DAYS   Only show repos with activity in the last N days (default: 365)
           --url        Include clickable URLs in output
+          --release    Include latest release tag and date
           --json       Output JSON instead of formatted table
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event
           --no-color   Disable color output

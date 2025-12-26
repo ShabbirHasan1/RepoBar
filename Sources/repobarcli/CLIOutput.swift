@@ -92,11 +92,11 @@ func tableLines(
         padLeft(pullsHeader, to: pullsWidth),
         padLeft(starsHeader, to: starsWidth)
     ]
+    headerParts.append(repoHeader)
     if includeRelease {
         headerParts.append(padRight(releaseHeader, to: releaseWidth))
         headerParts.append(padRight(releasedHeader, to: releasedWidth))
     }
-    headerParts.append(repoHeader)
     headerParts.append(eventHeader)
 
     let header = headerParts.joined(separator: "  ")
@@ -143,11 +143,11 @@ func tableLines(
             coloredPulls,
             coloredStars
         ]
+        outputParts.append(coloredRepo)
         if includeRelease {
             outputParts.append(coloredRel)
             outputParts.append(coloredReleased)
         }
-        outputParts.append(coloredRepo)
         outputParts.append(coloredLine)
 
         let output = outputParts.joined(separator: "  ")

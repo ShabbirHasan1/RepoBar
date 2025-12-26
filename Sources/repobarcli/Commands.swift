@@ -31,9 +31,6 @@ struct ReposCommand: CommanderRunnableCommand {
     @Option(name: .customLong("age"), help: "Max age in days for repo activity (default: 365)")
     var age: Int = 365
 
-    @Flag(names: [.customLong("name")], help: "Show plain owner/repo instead of a clickable repo link")
-    var showRepoName: Bool = false
-
     @Flag(names: [.customLong("release")], help: "Include latest release tag and date")
     var includeRelease: Bool = false
 
@@ -58,7 +55,6 @@ struct ReposCommand: CommanderRunnableCommand {
         self.limit = try values.decodeOption("limit")
         self.age = try values.decodeOption("age") ?? 365
         self.sort = try values.decodeOption("sort") ?? .activity
-        self.showRepoName = values.flag("showRepoName")
         self.includeRelease = values.flag("includeRelease")
         self.includeEvent = values.flag("includeEvent")
     }
@@ -115,7 +111,7 @@ struct ReposCommand: CommanderRunnableCommand {
             renderTable(
                 rows,
                 useColor: self.output.useColor,
-                includeURL: self.showRepoName == false,
+                includeURL: self.output.plain == false,
                 includeRelease: self.includeRelease,
                 includeEvent: self.includeEvent,
                 baseHost: baseHost

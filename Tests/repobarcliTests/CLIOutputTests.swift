@@ -5,13 +5,13 @@ import Testing
 
 struct CLIOutputTests {
     @Test
-    func repoLabelUsesNameWhenURLDisabled() {
+    func repoLabelUsesNameWhenURLsDisabled() {
         let url = URL(string: "https://github.com/steipete/RepoBar")!
         let label = formatRepoLabel(
             repoName: "steipete/RepoBar",
             repoURL: url,
             includeURL: false,
-            linkEnabled: false
+            linkEnabled: true
         )
         #expect(label == "steipete/RepoBar")
     }

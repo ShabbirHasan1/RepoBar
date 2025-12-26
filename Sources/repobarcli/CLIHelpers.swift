@@ -49,6 +49,9 @@ struct OutputOptions: CommanderParsable, Sendable {
     )
     var jsonOutput: Bool = false
 
+    @Flag(names: [.customLong("plain")], help: "Plain table output (no links, no colors, no URLs)")
+    var plain: Bool = false
+
     @Flag(names: [.customLong("no-color")], help: "Disable color output")
     var noColor: Bool = false
 
@@ -56,11 +59,12 @@ struct OutputOptions: CommanderParsable, Sendable {
 
     mutating func bind(_ values: ParsedValues) {
         self.jsonOutput = values.flag("jsonOutput")
+        self.plain = values.flag("plain")
         self.noColor = values.flag("noColor")
     }
 
     var useColor: Bool {
-        self.jsonOutput == false && self.noColor == false && Ansi.supportsColor
+        self.jsonOutput == false && self.plain == false && self.noColor == false && Ansi.supportsColor
     }
 }
 
@@ -222,7 +226,7 @@ func printHelp(_ target: HelpTarget) {
         repobarcli - list repositories by activity, issues, PRs, stars
 
         Usage:
-          repobarcli [repos] [--limit N] [--age DAYS] [--name] [--release] [--event] [--json] [--sort KEY]
+          repobarcli [repos] [--limit N] [--age DAYS] [--release] [--event] [--json] [--plain] [--sort KEY]
           repobarcli login [--host URL] [--client-id ID] [--client-secret SECRET] [--loopback-port PORT]
           repobarcli logout
           repobarcli status [--json]
@@ -230,10 +234,10 @@ func printHelp(_ target: HelpTarget) {
         Options:
           --limit N    Max repositories to fetch (default: all accessible)
           --age DAYS   Only show repos with activity in the last N days (default: 365)
-          --name       Show plain owner/repo instead of a clickable repo link
           --release    Include latest release tag and date
           --event      Show activity event column (hidden by default)
           --json       Output JSON instead of formatted table
+          --plain      Plain table output (no links, no colors, no URLs)
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event
           --no-color   Disable color output
           -h, --help   Show help
@@ -243,15 +247,15 @@ func printHelp(_ target: HelpTarget) {
         repobarcli repos - list repositories
 
         Usage:
-          repobarcli repos [--limit N] [--age DAYS] [--name] [--release] [--event] [--json] [--sort KEY]
+          repobarcli repos [--limit N] [--age DAYS] [--release] [--event] [--json] [--plain] [--sort KEY]
 
         Options:
           --limit N    Max repositories to fetch (default: all accessible)
           --age DAYS   Only show repos with activity in the last N days (default: 365)
-          --name       Show plain owner/repo instead of a clickable repo link
           --release    Include latest release tag and date
           --event      Show activity event column (hidden by default)
           --json       Output JSON instead of formatted table
+          --plain      Plain table output (no links, no colors, no URLs)
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event
           --no-color   Disable color output
         """

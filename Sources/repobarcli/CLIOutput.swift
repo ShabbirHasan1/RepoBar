@@ -47,6 +47,7 @@ func renderTable(
     useColor: Bool,
     includeURL: Bool,
     includeRelease: Bool,
+    includeEvent: Bool,
     baseHost: URL
 ) {
     for line in tableLines(
@@ -54,6 +55,7 @@ func renderTable(
         useColor: useColor,
         includeURL: includeURL,
         includeRelease: includeRelease,
+        includeEvent: includeEvent,
         baseHost: baseHost
     ) {
         print(line)
@@ -65,6 +67,7 @@ func tableLines(
     useColor: Bool,
     includeURL: Bool,
     includeRelease: Bool,
+    includeEvent: Bool,
     baseHost: URL
 ) -> [String] {
     let activityHeader = "ACTIVITY"
@@ -97,7 +100,9 @@ func tableLines(
         headerParts.append(padRight(releaseHeader, to: releaseWidth))
         headerParts.append(padRight(releasedHeader, to: releasedWidth))
     }
-    headerParts.append(eventHeader)
+    if includeEvent {
+        headerParts.append(eventHeader)
+    }
 
     let header = headerParts.joined(separator: "  ")
 
@@ -121,12 +126,14 @@ func tableLines(
         )
         let lineText = row.activityLine.singleLine
         let lineURL = row.repo.latestActivity?.url
-        let line = formatEventLabel(
-            text: lineText,
-            url: lineURL,
-            includeURL: includeURL,
-            linkEnabled: Ansi.supportsLinks
-        )
+        let line: String? = if includeEvent {
+            formatEventLabel(
+                text: lineText,
+                url: lineURL,
+                includeURL: includeURL,
+                linkEnabled: Ansi.supportsLinks
+            )
+        } else { nil }
 
         let coloredActivity = useColor ? Ansi.gray.wrap(activity) : activity
         let coloredIssues = useColor ? (row.repo.openIssues > 0 ? Ansi.red.wrap(issues) : Ansi.gray.wrap(issues)) : issues
@@ -135,7 +142,9 @@ func tableLines(
         let coloredRel = useColor ? (row.repo.latestRelease == nil ? Ansi.gray.wrap(rel) : rel) : rel
         let coloredReleased = useColor ? (row.repo.latestRelease == nil ? Ansi.gray.wrap(released) : released) : released
         let coloredRepo = useColor ? Ansi.cyan.wrap(repoLabel) : repoLabel
-        let coloredLine = useColor && row.repo.error != nil ? Ansi.red.wrap(line) : line
+        let coloredLine: String? = if let line {
+            useColor && row.repo.error != nil ? Ansi.red.wrap(line) : line
+        } else { nil }
 
         var outputParts = [
             coloredActivity,
@@ -148,7 +157,9 @@ func tableLines(
             outputParts.append(coloredRel)
             outputParts.append(coloredReleased)
         }
-        outputParts.append(coloredLine)
+        if let coloredLine {
+            outputParts.append(coloredLine)
+        }
 
         let output = outputParts.joined(separator: "  ")
         lines.append(output)

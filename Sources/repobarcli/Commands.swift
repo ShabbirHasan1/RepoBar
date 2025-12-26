@@ -37,6 +37,9 @@ struct ReposCommand: CommanderRunnableCommand {
     @Flag(names: [.customLong("release")], help: "Include latest release tag and date")
     var includeRelease: Bool = false
 
+    @Flag(names: [.customLong("event")], help: "Include activity event column")
+    var includeEvent: Bool = false
+
     @Option(name: .customLong("sort"), help: "Sort by activity, issues, prs, stars, repo, or event")
     var sort: RepositorySortKey = .activity
 
@@ -57,6 +60,7 @@ struct ReposCommand: CommanderRunnableCommand {
         self.sort = try values.decodeOption("sort") ?? .activity
         self.includeURL = values.flag("includeURL")
         self.includeRelease = values.flag("includeRelease")
+        self.includeEvent = values.flag("includeEvent")
     }
 
     mutating func run() async throws {
@@ -113,6 +117,7 @@ struct ReposCommand: CommanderRunnableCommand {
                 useColor: self.output.useColor,
                 includeURL: self.includeURL,
                 includeRelease: self.includeRelease,
+                includeEvent: self.includeEvent,
                 baseHost: baseHost
             )
         }

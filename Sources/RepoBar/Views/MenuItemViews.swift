@@ -69,8 +69,10 @@ struct RepoMenuCardView: View {
             if let release = repo.latestRelease {
                 let date = self.repo.latestReleaseDate ?? ""
                 Text(date.isEmpty ? release : "\(release) • \(date)")
-                    .font(.caption2)
+                    .font(.system(size: 10))
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
     }

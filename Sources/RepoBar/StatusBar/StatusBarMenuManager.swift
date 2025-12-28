@@ -633,6 +633,7 @@ private struct MenuItemContainerView<Content: View>: View {
 
     var body: some View {
         self.content
+            .padding(.trailing, self.showsSubmenuIndicator ? 18 : 0)
             .frame(maxWidth: .infinity, alignment: .leading)
             .environment(\.menuItemHighlighted, self.highlightState.isHighlighted)
             .foregroundStyle(MenuHighlightStyle.primary(self.highlightState.isHighlighted))

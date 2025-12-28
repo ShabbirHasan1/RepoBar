@@ -78,12 +78,12 @@ struct RepoMenuCardView: View {
     @ViewBuilder
     private var stats: some View {
         HStack(spacing: 12) {
-            MenuStatBadge(label: "Issues", value: self.repo.issues)
-            MenuStatBadge(label: "PRs", value: self.repo.pulls)
-            MenuStatBadge(label: "Stars", value: self.repo.stars)
-            MenuStatBadge(label: "Forks", value: self.repo.forks)
+            MenuStatBadge(label: "Issues", value: self.repo.issues, systemImage: "exclamationmark.circle")
+            MenuStatBadge(label: "PRs", value: self.repo.pulls, systemImage: "arrow.triangle.branch")
+            MenuStatBadge(label: "Stars", value: self.repo.stars, systemImage: "star")
+            MenuStatBadge(label: "Forks", value: self.repo.forks, systemImage: "tuningfork")
             if let lastPushAge = self.repo.lastPushAge {
-                MenuStatBadge(label: "Push", valueText: lastPushAge)
+                MenuStatBadge(label: "Push", valueText: lastPushAge, systemImage: "arrow.up.circle")
             }
         }
     }
@@ -138,22 +138,31 @@ struct RepoMenuCardView: View {
 struct MenuStatBadge: View {
     let label: String
     let valueText: String
+    let systemImage: String?
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
-    init(label: String, value: Int) {
+    init(label: String, value: Int, systemImage: String? = nil) {
         self.label = label
         self.valueText = "\(value)"
+        self.systemImage = systemImage
     }
 
-    init(label: String, valueText: String) {
+    init(label: String, valueText: String, systemImage: String? = nil) {
         self.label = label
         self.valueText = valueText
+        self.systemImage = systemImage
     }
 
     var body: some View {
-        Text("\(self.label) \(self.valueText)")
-            .font(.caption2)
-            .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+        HStack(spacing: 4) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.caption2)
+            }
+            Text("\(self.label) \(self.valueText)")
+                .font(.caption2)
+        }
+        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
     }
 }
 

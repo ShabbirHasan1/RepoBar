@@ -338,6 +338,8 @@ final class Session: ObservableObject {
     @Published var contributionHeatmap: [HeatmapCell] = []
     @Published var contributionUser: String?
     @Published var contributionError: String?
+    @Published var menuRepoScope: MenuRepoScope = .all
+    @Published var menuRepoFilter: MenuRepoFilter = .all
 }
 
 enum AccountState: Equatable {

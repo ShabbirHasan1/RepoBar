@@ -1,4 +1,15 @@
+import Foundation
 import Security
+
+@MainActor
+final class UpdateStatus {
+    static let disabled = UpdateStatus()
+    var isUpdateReady: Bool
+
+    init(isUpdateReady: Bool = false) {
+        self.isUpdateReady = isUpdateReady
+    }
+}
 
 @MainActor
 protocol UpdaterProviding: AnyObject {
@@ -29,12 +40,13 @@ final class DisabledUpdaterController: UpdaterProviding {
 
 /// Simple Sparkle wrapper so we can call from menus without passing around the updater.
 @MainActor
-final class SparkleController {
+final class SparkleController: NSObject {
     static let shared = SparkleController()
     private let updater: UpdaterProviding
+    let updateStatus: UpdateStatus
     private let defaultsKey = "autoUpdateEnabled"
 
-    private init() {
+    private override init() {
         #if canImport(Sparkle)
             let bundleURL = Bundle.main.bundleURL
             let isBundledApp = bundleURL.pathExtension == "app"
@@ -44,17 +56,20 @@ final class SparkleController {
                 let saved = (UserDefaults.standard.object(forKey: self.defaultsKey) as? Bool) ?? true
                 let controller = SPUStandardUpdaterController(
                     startingUpdater: false,
-                    updaterDelegate: nil,
+                    updaterDelegate: self,
                     userDriverDelegate: nil
                 )
                 controller.automaticallyChecksForUpdates = saved
                 controller.startUpdater()
                 self.updater = controller
+                self.updateStatus = UpdateStatus()
             } else {
                 self.updater = DisabledUpdaterController()
+                self.updateStatus = .disabled
             }
         #else
             self.updater = DisabledUpdaterController()
+            self.updateStatus = .disabled
         #endif
     }
 
@@ -92,3 +107,46 @@ final class SparkleController {
         return false
     }
 }
+
+#if canImport(Sparkle)
+import Sparkle
+
+extension SparkleController: SPUUpdaterDelegate {
+    nonisolated func updater(_ updater: SPUUpdater, didDownloadUpdate item: SUAppcastItem) {
+        Task { @MainActor in
+            self.updateStatus.isUpdateReady = true
+        }
+    }
+
+    nonisolated func updater(_ updater: SPUUpdater, failedToDownloadUpdate item: SUAppcastItem, error: Error) {
+        Task { @MainActor in
+            self.updateStatus.isUpdateReady = false
+        }
+    }
+
+    nonisolated func userDidCancelDownload(_ updater: SPUUpdater) {
+        Task { @MainActor in
+            self.updateStatus.isUpdateReady = false
+        }
+    }
+
+    nonisolated func updater(
+        _ updater: SPUUpdater,
+        userDidMake choice: SPUUserUpdateChoice,
+        forUpdate updateItem: SUAppcastItem,
+        state: SPUUserUpdateState
+    ) {
+        let downloaded = state.stage == .downloaded
+        Task { @MainActor in
+            switch choice {
+            case .install, .skip:
+                self.updateStatus.isUpdateReady = false
+            case .dismiss:
+                self.updateStatus.isUpdateReady = downloaded
+            @unknown default:
+                self.updateStatus.isUpdateReady = false
+            }
+        }
+    }
+}
+#endif

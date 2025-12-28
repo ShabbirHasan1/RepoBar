@@ -3,6 +3,7 @@ import SwiftUI
 
 struct ContributionHeaderView: View {
     let username: String
+    let displayName: String
     @EnvironmentObject var session: Session
     @EnvironmentObject var appState: AppState
     @State private var isLoading = true
@@ -11,7 +12,7 @@ struct ContributionHeaderView: View {
     var body: some View {
         if self.session.settings.showHeatmap {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Contributions · last \(self.session.settings.heatmapSpan.label)")
+                Text("Contributions · \(self.displayName) · last \(self.session.settings.heatmapSpan.label)")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                 self.content
@@ -52,11 +53,34 @@ struct ContributionHeaderView: View {
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
         } else {
             let filtered = HeatmapFilter.filter(self.session.contributionHeatmap, span: self.session.settings.heatmapSpan)
-            HeatmapView(cells: filtered, accentTone: self.session.settings.accentTone, height: 48)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityLabel("Contribution graph for \(self.username)")
+            VStack(spacing: 4) {
+                HeatmapView(cells: filtered, accentTone: self.session.settings.accentTone, height: 48)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                self.axisLabels
+            }
+            .accessibilityLabel("Contribution graph for \(self.username)")
         }
     }
+
+    private var axisLabels: some View {
+        let now = Date()
+        let start = Calendar.current.date(byAdding: .month, value: -self.session.settings.heatmapSpan.months, to: now) ?? now
+        return HStack {
+            Text(Self.axisFormatter.string(from: start))
+            Spacer()
+            Text(Self.axisFormatter.string(from: now))
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+
+    private static let axisFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "MMM yyyy"
+        return formatter
+    }()
 
     private var placeholder: some View {
         RoundedRectangle(cornerRadius: 8)

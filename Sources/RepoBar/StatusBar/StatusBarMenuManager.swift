@@ -175,14 +175,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let session = self.appState.session
         let settings = session.settings
 
-        menu.addItem(self.accountStateItem())
-        menu.addItem(.separator())
-
         if settings.showContributionHeader,
            settings.showHeatmap,
-           let username = self.currentUsername()
+           let username = self.currentUsername(),
+           let displayName = self.currentDisplayName()
         {
-            let header = ContributionHeaderView(username: username)
+            let header = ContributionHeaderView(username: username, displayName: displayName)
                 .environmentObject(session)
                 .environmentObject(self.appState)
                 .padding(.horizontal, 10)
@@ -242,6 +240,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 .padding(.vertical, 8)
             menu.addItem(self.viewItem(for: emptyState, enabled: false))
         } else {
+            let filters = MenuRepoFiltersView()
+                .environmentObject(self.appState.session)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+            menu.addItem(self.viewItem(for: filters, enabled: false))
+            menu.addItem(.separator())
             for (index, repo) in repos.enumerated() {
                 let isPinned = settings.pinnedRepositories.contains(repo.title)
                 let card = RepoMenuCardView(
@@ -261,23 +265,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
         menu.addItem(.separator())
         menu.addItem(self.actionItem(title: "Preferences…", action: #selector(self.openPreferences), keyEquivalent: ","))
-        menu.addItem(self.actionItem(title: "Check for Updates…", action: #selector(self.checkForUpdates)))
+        if SparkleController.shared.updateStatus.isUpdateReady {
+            menu.addItem(self.actionItem(title: "Update ready, restart now?", action: #selector(self.checkForUpdates)))
+        }
         menu.addItem(.separator())
         menu.addItem(self.actionItem(title: "Quit RepoBar", action: #selector(self.quitApp), keyEquivalent: "q"))
-    }
-
-    private func accountStateItem() -> NSMenuItem {
-        let title: String
-        switch self.appState.session.account {
-        case .loggedOut: title = "Not signed in"
-        case .loggingIn: title = "Signing in…"
-        case let .loggedIn(user):
-            let host = user.host.host ?? "github.com"
-            title = "Signed in as \(user.username)@\(host)"
-        }
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-        item.isEnabled = false
-        return item
     }
 
     private func makeRepoSubmenu(for repo: RepositoryViewModel, isPinned: Bool) -> NSMenu {
@@ -447,7 +439,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let repos = self.appState.session.repositories
             .prefix(self.appState.session.settings.repoDisplayLimit)
             .map { RepositoryViewModel(repo: $0) }
-        return repos.sorted { lhs, rhs in
+        var sorted = repos.sorted { lhs, rhs in
             switch (lhs.sortOrder, rhs.sortOrder) {
             case let (left?, right?):
                 return left < right
@@ -459,11 +451,27 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 return RepositorySort.isOrderedBefore(lhs.source, rhs.source, sortKey: .activity)
             }
         }
+        let session = self.appState.session
+        if session.menuRepoScope == .pinned {
+            let pinned = Set(session.settings.pinnedRepositories)
+            sorted = sorted.filter { pinned.contains($0.title) }
+        }
+        let onlyWith = session.menuRepoFilter.onlyWith
+        if onlyWith.isActive {
+            sorted = sorted.filter { onlyWith.matches($0.source) }
+        }
+        return sorted
     }
 
     private func currentUsername() -> String? {
         if case let .loggedIn(user) = self.appState.session.account { return user.username }
         return nil
+    }
+
+    private func currentDisplayName() -> String? {
+        guard case let .loggedIn(user) = self.appState.session.account else { return nil }
+        let host = user.host.host ?? "github.com"
+        return "\(user.username)@\(host)"
     }
 
     private func repoModel(from sender: NSMenuItem) -> RepositoryViewModel? {

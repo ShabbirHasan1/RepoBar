@@ -8,7 +8,7 @@ public struct UserSettings: Equatable, Codable {
     public var refreshInterval: RefreshInterval = .fiveMinutes
     public var launchAtLogin = false
     public var showHeatmap = true
-    public var heatmapSpan: HeatmapSpan = .threeMonths
+    public var heatmapSpan: HeatmapSpan = .twelveMonths
     public var cardDensity: CardDensity = .comfortable
     public var accentTone: AccentTone = .githubGreen
     public var debugPaneEnabled: Bool = false

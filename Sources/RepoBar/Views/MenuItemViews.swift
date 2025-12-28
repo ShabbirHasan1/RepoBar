@@ -1,5 +1,6 @@
 import RepoBarCore
 import SwiftUI
+import AppKit
 
 private struct MenuItemHighlightedKey: EnvironmentKey {
     static let defaultValue = false
@@ -158,12 +159,18 @@ struct MenuCIBadge: View {
     }
 
     private var color: Color {
-        switch self.status {
-        case .passing: .green
-        case .failing: .red
-        case .pending: .yellow
-        case .unknown: .gray
+        let base: NSColor = switch self.status {
+        case .passing: .systemGreen
+        case .failing: .systemRed
+        case .pending: .systemYellow
+        case .unknown: .tertiaryLabelColor
         }
+        let adjusted = self.isLightAppearance ? base.withAlphaComponent(0.6) : base
+        return Color(nsColor: adjusted)
+    }
+
+    private var isLightAppearance: Bool {
+        NSApp.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .aqua
     }
 }
 
@@ -262,5 +269,32 @@ enum MenuHighlightStyle {
 
     static func selectionBackground(_ highlighted: Bool) -> Color {
         highlighted ? Color(nsColor: .selectedContentBackgroundColor) : .clear
+    }
+}
+
+struct MenuRepoFiltersView: View {
+    @EnvironmentObject var session: Session
+
+    var body: some View {
+        VStack(spacing: 6) {
+            Picker("Scope", selection: self.$session.menuRepoScope) {
+                ForEach(MenuRepoScope.allCases, id: \.self) { scope in
+                    Text(scope.label).tag(scope)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .controlSize(.small)
+
+            Picker("Filter", selection: self.$session.menuRepoFilter) {
+                ForEach(MenuRepoFilter.allCases, id: \.self) { filter in
+                    Text(filter.label).tag(filter)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

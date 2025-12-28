@@ -14,6 +14,13 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     init(appState: AppState) {
         self.appState = appState
+        super.init()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.menuFiltersChanged),
+            name: .menuFiltersDidChange,
+            object: nil
+        )
     }
 
     func attachMainMenu(to statusItem: NSStatusItem) {
@@ -38,6 +45,13 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     @objc private func checkForUpdates() {
         SparkleController.shared.checkForUpdates()
+    }
+
+    @objc private func menuFiltersChanged() {
+        guard let menu = self.mainMenu else { return }
+        self.populateMainMenu(menu)
+        self.refreshMenuViewHeights(in: menu)
+        menu.update()
     }
 
     @objc private func logOut() {
@@ -253,7 +267,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 .environmentObject(self.appState.session)
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-            menu.addItem(self.viewItem(for: filters, enabled: false))
+            menu.addItem(self.viewItem(for: filters, enabled: true))
             menu.addItem(.separator())
             for (index, repo) in repos.enumerated() {
                 let isPinned = settings.pinnedRepositories.contains(repo.title)

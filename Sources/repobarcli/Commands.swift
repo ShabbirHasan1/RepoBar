@@ -46,6 +46,12 @@ struct ReposCommand: CommanderRunnableCommand {
     @Flag(names: [.customLong("archived"), .customLong("include-archived")], help: "Include archived repositories (hidden by default)")
     var includeArchived: Bool = false
 
+    @Option(name: .customLong("scope"), help: "Repository scope (values: all, pinned, hidden)")
+    var scope: RepoScopeSelection?
+
+    @Option(name: .customLong("filter"), help: "Filter repositories (values: all, work, issues, prs)")
+    var filter: RepoFilterSelection?
+
     @Flag(names: [.customLong("pinned-only")], help: "Only list pinned repositories from settings")
     var pinnedOnly: Bool = false
 
@@ -74,6 +80,8 @@ struct ReposCommand: CommanderRunnableCommand {
         self.includeEvent = values.flag("includeEvent")
         self.includeForks = values.flag("includeForks")
         self.includeArchived = values.flag("includeArchived")
+        self.scope = try values.decodeOption("scope")
+        self.filter = try values.decodeOption("filter")
         self.pinnedOnly = values.flag("pinnedOnly")
         self.onlyWith = try values.decodeOption("onlyWith")
     }
@@ -84,6 +92,12 @@ struct ReposCommand: CommanderRunnableCommand {
         }
         if self.age <= 0 {
             throw ValidationError("--age must be greater than 0")
+        }
+        if self.pinnedOnly, let scope, scope != .pinned {
+            throw ValidationError("--pinned-only cannot be combined with --scope \(scope.rawValue)")
+        }
+        if self.filter != nil, self.onlyWith != nil {
+            throw ValidationError("--filter cannot be combined with --only-with")
         }
 
         if self.output.jsonOutput == false, self.output.useColor {
@@ -110,10 +124,13 @@ struct ReposCommand: CommanderRunnableCommand {
 
         let now = Date()
         let baseHost = settings.enterpriseHost ?? settings.githubHost
+        let effectiveScope = self.scope ?? (self.pinnedOnly ? .pinned : .all)
+        let effectiveOnlyWith = self.filter?.onlyWith ?? self.onlyWith?.filter ?? .none
+        let hidden = Set(settings.hiddenRepositories)
+        let pinned = settings.pinnedRepositories.filter { !hidden.contains($0) }
 
-        if self.pinnedOnly {
-            let hidden = Set(settings.hiddenRepositories)
-            let pinned = settings.pinnedRepositories.filter { !hidden.contains($0) }
+        switch effectiveScope {
+        case .pinned:
             guard pinned.isEmpty == false else {
                 if self.output.jsonOutput {
                     try renderJSON([], baseHost: baseHost)
@@ -122,21 +139,36 @@ struct ReposCommand: CommanderRunnableCommand {
                 }
                 return
             }
-            let repos = try await self.fetchPinnedRepositories(pinned, client: client)
-            let rows = prepareRows(repos: repos, now: now)
-            if self.output.jsonOutput {
-                try renderJSON(rows, baseHost: baseHost)
-            } else {
-                renderTable(
-                    rows,
-                    useColor: self.output.useColor,
-                    includeURL: self.output.plain == false,
-                    includeRelease: self.includeRelease,
-                    includeEvent: self.includeEvent,
-                    baseHost: baseHost
-                )
-            }
+            let repos = try await self.fetchNamedRepositories(pinned, client: client)
+            let filtered = effectiveOnlyWith.isActive ? repos.filter { effectiveOnlyWith.matches($0) } : repos
+            try await self.renderResults(
+                repos: filtered,
+                baseHost: baseHost,
+                now: now,
+                client: client
+            )
             return
+        case .hidden:
+            let hiddenList = settings.hiddenRepositories
+            guard hiddenList.isEmpty == false else {
+                if self.output.jsonOutput {
+                    try renderJSON([], baseHost: baseHost)
+                } else {
+                    print("No hidden repositories to show.")
+                }
+                return
+            }
+            let repos = try await self.fetchNamedRepositories(hiddenList, client: client)
+            let filtered = effectiveOnlyWith.isActive ? repos.filter { effectiveOnlyWith.matches($0) } : repos
+            try await self.renderResults(
+                repos: filtered,
+                baseHost: baseHost,
+                now: now,
+                client: client
+            )
+            return
+        case .all:
+            break
         }
 
         let repos = try await client.activityRepositories(limit: limit)
@@ -146,17 +178,40 @@ struct ReposCommand: CommanderRunnableCommand {
             guard let date = repo.activityDate else { return false }
             return date >= cutoff
         }
-        let filteredRepos = RepositoryFilter.apply(
-            filtered,
-            includeForks: self.includeForks,
-            includeArchived: self.includeArchived,
-            onlyWith: self.onlyWith?.filter ?? .none
+        let visible = filtered.filter { !hidden.contains($0.fullName) }
+        let pinnedSet = Set(pinned)
+        let filteredRepos = visible.filter { repo in
+            if self.includeForks == false, repo.isFork, pinnedSet.contains(repo.fullName) == false {
+                return false
+            }
+            if self.includeArchived == false, repo.isArchived, pinnedSet.contains(repo.fullName) == false {
+                return false
+            }
+            if effectiveOnlyWith.isActive, effectiveOnlyWith.matches(repo) == false {
+                return false
+            }
+            return true
+        }
+        try await self.renderResults(
+            repos: filteredRepos,
+            baseHost: baseHost,
+            now: now,
+            client: client
         )
-        var sorted = RepositorySort.sorted(filteredRepos, sortKey: self.sort)
+    }
+
+    private func renderResults(
+        repos: [Repository],
+        baseHost: URL,
+        now: Date,
+        client: GitHubClient
+    ) async throws {
+        var sorted = RepositorySort.sorted(repos, sortKey: self.sort)
         if self.includeRelease {
             sorted = try await self.attachLatestReleases(to: sorted, client: client)
         }
-        let rows = prepareRows(repos: sorted, now: now)
+        let limited = self.limit.map { Array(sorted.prefix(max($0, 0))) } ?? sorted
+        let rows = prepareRows(repos: limited, now: now)
 
         if self.output.jsonOutput {
             try renderJSON(rows, baseHost: baseHost)
@@ -199,8 +254,8 @@ struct ReposCommand: CommanderRunnableCommand {
         }
     }
 
-    private func fetchPinnedRepositories(_ pinned: [String], client: GitHubClient) async throws -> [Repository] {
-        let targets: [(Int, String, String)] = pinned.enumerated().compactMap { index, name in
+    private func fetchNamedRepositories(_ names: [String], client: GitHubClient) async throws -> [Repository] {
+        let targets: [(Int, String, String)] = names.enumerated().compactMap { index, name in
             let parts = name.split(separator: "/", maxSplits: 1).map(String.init)
             guard parts.count == 2 else { return nil }
             return (index, parts[0], parts[1])
@@ -213,7 +268,7 @@ struct ReposCommand: CommanderRunnableCommand {
                 }
             }
 
-            var results: [Repository?] = Array(repeating: nil, count: pinned.count)
+            var results: [Repository?] = Array(repeating: nil, count: names.count)
             for try await (index, repo) in group {
                 results[index] = repo
             }

@@ -235,7 +235,7 @@ func printHelp(_ target: HelpTarget) {
         repobar - list repositories by activity, issues, PRs, stars
 
         Usage:
-          repobar [repos] [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--pinned-only] [--only-with VAL] [--json] [--plain] [--sort KEY]
+          repobar [repos] [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--scope VAL] [--filter VAL] [--pinned-only] [--only-with VAL] [--json] [--plain] [--sort KEY]
           repobar repo <owner/name> [--traffic] [--heatmap] [--release] [--json] [--plain]
           repobar refresh [--json] [--plain]
           repobar contributions [--login USER] [--json] [--plain]
@@ -250,7 +250,9 @@ func printHelp(_ target: HelpTarget) {
           --event      Show activity event column (hidden by default)
           --forks      Include forked repositories (hidden by default)
           --archived   Include archived repositories (hidden by default)
-          --pinned-only  Only list pinned repositories from settings
+          --scope      Scope repositories (values: all, pinned, hidden)
+          --filter     Filter repositories (values: all, work, issues, prs)
+          --pinned-only  Only list pinned repositories from settings (alias for --scope pinned)
           --only-with  Only show repos that have issues and/or PRs (values: work, issues, prs)
           --json       Output JSON instead of formatted table
           --plain      Plain table output (no links, no colors, no URLs)
@@ -263,7 +265,7 @@ func printHelp(_ target: HelpTarget) {
         repobar repos - list repositories
 
         Usage:
-          repobar repos [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--pinned-only] [--only-with VAL] [--json] [--plain] [--sort KEY]
+          repobar repos [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--scope VAL] [--filter VAL] [--pinned-only] [--only-with VAL] [--json] [--plain] [--sort KEY]
 
         Options:
           --limit N    Max repositories to fetch (default: all accessible)
@@ -272,7 +274,9 @@ func printHelp(_ target: HelpTarget) {
           --event      Show activity event column (hidden by default)
           --forks      Include forked repositories (hidden by default)
           --archived   Include archived repositories (hidden by default)
-          --pinned-only  Only list pinned repositories from settings
+          --scope      Scope repositories (values: all, pinned, hidden)
+          --filter     Filter repositories (values: all, work, issues, prs)
+          --pinned-only  Only list pinned repositories from settings (alias for --scope pinned)
           --only-with  Only show repos that have issues and/or PRs (values: work, issues, prs)
           --json       Output JSON instead of formatted table
           --plain      Plain table output (no links, no colors, no URLs)

@@ -326,9 +326,7 @@ struct MenuRepoFiltersView: View {
 
             Picker("Sort", selection: self.$session.settings.menuSortKey) {
                 ForEach(RepositorySortKey.menuCases, id: \.self) { sortKey in
-                    Label(sortKey.menuLabel, systemImage: sortKey.menuSymbolName)
-                        .labelStyle(.iconOnly)
-                        .tag(sortKey)
+                    Text(sortKey.menuLabel).tag(sortKey)
                 }
             }
             .labelsHidden()
@@ -340,14 +338,12 @@ struct MenuRepoFiltersView: View {
 
             MenuFilterToggle(
                 title: "Issues",
-                systemImage: "exclamationmark.circle",
                 isOn: Binding(
                     get: { self.session.menuOnlyWith.requireIssues },
                     set: { self.session.menuOnlyWith.requireIssues = $0 }))
 
             MenuFilterToggle(
                 title: "PRs",
-                systemImage: "arrow.triangle.branch",
                 isOn: Binding(
                     get: { self.session.menuOnlyWith.requirePRs },
                     set: { self.session.menuOnlyWith.requirePRs = $0 }))
@@ -367,13 +363,11 @@ struct MenuRepoFiltersView: View {
 
 struct MenuFilterToggle: View {
     let title: String
-    let systemImage: String
     @Binding var isOn: Bool
 
     var body: some View {
         Toggle(isOn: self.$isOn) {
-            Label(self.title, systemImage: self.systemImage)
-                .labelStyle(.iconOnly)
+            Text(self.title)
         }
         .toggleStyle(.button)
         .controlSize(.mini)

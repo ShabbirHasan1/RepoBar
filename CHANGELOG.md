@@ -22,3 +22,7 @@
 - repobarcli debug builds are now codesigned with a stable identifier (no repeated Keychain prompts after rebuilds).
 - mac app now caches repo detail fetches for 1 hour to reduce API usage.
 - Token refresh now preserves OAuth client credentials and shows a clearer error when refresh fails.
+
+### Fixed
+- mac app no longer crashes on launch due to the hidden keepalive window; Settings opens via AppKit action.
+- `pnpm start` now packages and launches a proper `.app` bundle (stable bundle identifier for menubar behavior).

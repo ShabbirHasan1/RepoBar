@@ -138,7 +138,7 @@ struct RepoMenuCardView: View {
     @ViewBuilder
     private var heatmap: some View {
         if self.showHeatmap, !self.repo.heatmap.isEmpty {
-            let filtered = HeatmapFilter.filter(self.repo.heatmap, span: self.heatmapSpan)
+            let filtered = HeatmapFilter.filter(self.repo.heatmap, span: self.heatmapSpan, now: Date(), alignToWeek: true)
             HeatmapView(cells: filtered, accentTone: self.accentTone, height: 44)
         }
     }

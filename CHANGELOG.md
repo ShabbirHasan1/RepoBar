@@ -46,6 +46,7 @@
 - Activity event links now deep-link to stars, releases, forks, and commits when available.
 - Recent activity now includes action/number labels, repo targets, and avatar icons.
 - Activity row now shows the latest activity timestamp aligned to the right.
+- Contribution and repository heatmaps now align to the same week-based date range.
 
 ### Fixed
 - Settings now open via SwiftUI `openSettings` from the MenuBarExtra.

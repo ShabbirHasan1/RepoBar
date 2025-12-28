@@ -78,7 +78,12 @@ struct ContributionHeaderView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
         } else {
-            let filtered = HeatmapFilter.filter(self.session.contributionHeatmap, span: self.session.settings.heatmapSpan)
+            let filtered = HeatmapFilter.filter(
+                self.session.contributionHeatmap,
+                span: self.session.settings.heatmapSpan,
+                now: Date(),
+                alignToWeek: true
+            )
             VStack(spacing: 4) {
                 HeatmapView(cells: filtered, accentTone: self.session.settings.accentTone, height: 48)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,12 +94,11 @@ struct ContributionHeaderView: View {
     }
 
     private var axisLabels: some View {
-        let now = Date()
-        let start = Calendar.current.date(byAdding: .month, value: -self.session.settings.heatmapSpan.months, to: now) ?? now
+        let range = HeatmapFilter.alignedRange(span: self.session.settings.heatmapSpan, now: Date())
         return HStack {
-            Text(Self.axisFormatter.string(from: start))
+            Text(Self.axisFormatter.string(from: range.start))
             Spacer()
-            Text(Self.axisFormatter.string(from: now))
+            Text(Self.axisFormatter.string(from: range.end))
         }
         .font(.caption2)
         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))

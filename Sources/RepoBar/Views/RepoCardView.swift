@@ -155,7 +155,12 @@ struct RepoCardView: View {
     @ViewBuilder
     private var heatmap: some View {
         if self.session.settings.showHeatmap, !self.repo.heatmap.isEmpty {
-            let filtered = HeatmapFilter.filter(self.repo.heatmap, span: self.session.settings.heatmapSpan)
+            let filtered = HeatmapFilter.filter(
+                self.repo.heatmap,
+                span: self.session.settings.heatmapSpan,
+                now: Date(),
+                alignToWeek: true
+            )
             HeatmapView(cells: filtered, accentTone: self.session.settings.accentTone)
         }
     }

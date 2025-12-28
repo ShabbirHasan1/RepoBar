@@ -6,6 +6,9 @@ let package = Package(
     platforms: [
         .macOS(.v15),
     ],
+    products: [
+        .executable(name: "repobar", targets: ["repobarcli"]),
+    ],
     dependencies: [
         .package(url: "https://github.com/steipete/Commander", from: "0.2.0"),
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.8.1"),
@@ -41,7 +44,7 @@ let package = Package(
                 ]),
                 ]),
         .executableTarget(
-            name: "repobar",
+            name: "repobarcli",
             dependencies: [
                 .product(name: "Commander", package: "Commander"),
                 "RepoBarCore",
@@ -58,8 +61,8 @@ let package = Package(
                 .enableExperimentalFeature("SwiftTesting"),
             ]),
         .testTarget(
-            name: "repobarTests",
-            dependencies: ["repobar"],
+            name: "repobarcliTests",
+            dependencies: ["repobarcli"],
             path: "Tests/repobarcliTests",
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency"),

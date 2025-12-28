@@ -252,7 +252,7 @@ struct GeneralSettingsView: View {
                     ForEach([3, 6, 9, 12], id: \.self) { Text("\($0)").tag($0) }
                 }
                 Picker("Menu sort", selection: self.$session.settings.menuSortKey) {
-                    ForEach(RepositorySortKey.menuCases, id: \.self) { sortKey in
+                    ForEach(RepositorySortKey.settingsCases, id: \.self) { sortKey in
                         Text(sortKey.settingsLabel).tag(sortKey)
                     }
                 }

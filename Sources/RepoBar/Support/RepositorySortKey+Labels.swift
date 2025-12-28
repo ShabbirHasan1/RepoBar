@@ -2,6 +2,10 @@ import RepoBarCore
 
 extension RepositorySortKey {
     static var menuCases: [RepositorySortKey] {
+        [.activity, .issues, .pulls, .stars]
+    }
+
+    static var settingsCases: [RepositorySortKey] {
         [.activity, .issues, .pulls, .stars, .name]
     }
 

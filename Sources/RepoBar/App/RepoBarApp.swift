@@ -161,22 +161,14 @@ final class AppState {
                     await MainActor.run { self.session.account = .loggedIn(user) }
                 }
             }
-            let repoNames = self.session.settings.pinnedRepositories
-            let repos: [Repository] = if !repoNames.isEmpty {
-                try await self.fetchPinned(repoNames: repoNames)
-            } else {
-                try await self.github.defaultRepositories(
-                    limit: self.session.settings.repoDisplayLimit * 2,
-                    for: self.currentUserNameOrEmpty()
-                )
-            }
+            let repos = try await self.github.activityRepositories(limit: nil)
             let trimmed = AppState.selectVisible(
                 all: repos,
                 pinned: self.session.settings.pinnedRepositories,
                 hidden: Set(self.session.settings.hiddenRepositories),
                 includeForks: self.session.settings.showForks,
                 includeArchived: self.session.settings.showArchived,
-                limit: self.session.settings.repoDisplayLimit
+                limit: Int.max
             )
             await MainActor.run {
                 self.session.repositories = trimmed.map { repo in
@@ -336,28 +328,6 @@ final class AppState {
         }
     }
 
-    private func currentUserNameOrEmpty() -> String {
-        if case let .loggedIn(user) = session.account { return user.username }
-        return ""
-    }
-
-    private func fetchPinned(repoNames: [String]) async throws -> [Repository] {
-        try await withThrowingTaskGroup(of: (Int, Repository).self) { group in
-            for (idx, name) in repoNames.enumerated() {
-                let parts = name.split(separator: "/", maxSplits: 1).map(String.init)
-                guard parts.count == 2 else { continue }
-                group.addTask {
-                    let repo = try await self.github.fullRepository(owner: parts[0], name: parts[1])
-                    return (idx, repo.withOrder(idx))
-                }
-            }
-            var items: [(Int, Repository)] = []
-            for try await pair in group {
-                items.append(pair)
-            }
-            return items.sorted { $0.0 < $1.0 }.map(\.1)
-        }
-    }
 }
 
 @Observable

@@ -406,11 +406,17 @@ struct AccountSettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        LabeledContent("Account") {
-                            Text(user.username)
-                        }
-                        LabeledContent("Host") {
-                            Text(user.host.host ?? "github.com")
+                        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
+                            GridRow {
+                                Text("Account")
+                                    .foregroundStyle(.secondary)
+                                Text(user.username)
+                            }
+                            GridRow {
+                                Text("Host")
+                                    .foregroundStyle(.secondary)
+                                Text(user.host.host ?? "github.com")
+                            }
                         }
                         Button("Log out") {
                             Task {

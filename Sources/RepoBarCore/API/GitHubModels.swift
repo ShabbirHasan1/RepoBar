@@ -153,12 +153,13 @@ struct EventActor: Decodable {
 }
 
 struct EventPayload: Decodable {
+    let action: String?
     let comment: EventComment?
     let issue: EventIssue?
     let pullRequest: EventPullRequest?
 
     enum CodingKeys: String, CodingKey {
-        case comment, issue
+        case action, comment, issue
         case pullRequest = "pull_request"
     }
 }
@@ -180,17 +181,68 @@ struct EventComment: Decodable {
 }
 
 struct EventIssue: Decodable {
+    let title: String?
     let htmlUrl: URL?
 
     enum CodingKeys: String, CodingKey {
+        case title
         case htmlUrl = "html_url"
     }
 }
 
 struct EventPullRequest: Decodable {
+    let title: String?
     let htmlUrl: URL?
 
     enum CodingKeys: String, CodingKey {
+        case title
         case htmlUrl = "html_url"
+    }
+}
+
+extension RepoEvent {
+    var displayTitle: String {
+        let base = Self.displayName(for: self.type)
+        guard let action = self.payload.action, action.isEmpty == false else { return base }
+        let actionLabel = action.replacingOccurrences(of: "_", with: " ")
+        return "\(base) \(actionLabel)"
+    }
+
+    static func displayName(for type: String) -> String {
+        switch type {
+        case "PullRequestEvent": "Pull Request"
+        case "PullRequestReviewEvent": "Pull Request Review"
+        case "PullRequestReviewCommentEvent": "Pull Request Review Comment"
+        case "PullRequestReviewThreadEvent": "Pull Request Review Thread"
+        case "IssueCommentEvent": "Issue Comment"
+        case "IssuesEvent": "Issue"
+        case "PushEvent": "Push"
+        case "ReleaseEvent": "Release"
+        case "WatchEvent": "Star"
+        case "ForkEvent": "Fork"
+        case "CreateEvent": "Create"
+        case "DeleteEvent": "Delete"
+        case "MemberEvent": "Member"
+        case "PublicEvent": "Public"
+        case "GollumEvent": "Wiki"
+        case "CommitCommentEvent": "Commit Comment"
+        case "DiscussionEvent": "Discussion"
+        case "SponsorshipEvent": "Sponsorship"
+        default:
+            return Self.prettyName(for: type)
+        }
+    }
+
+    private static func prettyName(for raw: String) -> String {
+        let trimmed = raw.hasSuffix("Event") ? String(raw.dropLast(5)) : raw
+        var result = ""
+        for scalar in trimmed.unicodeScalars {
+            let char = Character(scalar)
+            if char.isUppercase, result.isEmpty == false, result.last != " " {
+                result.append(" ")
+            }
+            result.append(char)
+        }
+        return result
     }
 }

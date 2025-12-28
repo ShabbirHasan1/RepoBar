@@ -630,7 +630,10 @@ public actor GitHubClient {
         }
         guard let event = filtered else { return nil }
 
-        let preview = event.payload.comment?.bodyPreview ?? event.type
+        let preview = event.payload.comment?.bodyPreview
+            ?? event.payload.issue?.title
+            ?? event.payload.pullRequest?.title
+            ?? event.displayTitle
         let fallbackURL = URL(string: "https://github.com/\(owner)/\(name)")!
         let url = event.payload.comment?.htmlUrl ?? event.payload.issue?.htmlUrl ?? event.payload.pullRequest?.htmlUrl ?? fallbackURL
         return ActivityEvent(

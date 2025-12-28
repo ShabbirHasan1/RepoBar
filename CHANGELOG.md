@@ -49,3 +49,4 @@
 - Contribution heatmap date parsing handles both date-only and ISO8601 timestamps.
 - Sparkle updater initialization now defers controller setup until after `super.init`.
 - Activity labels now use readable event names and prefer issue/PR titles over raw event types.
+- Menu no longer preselects the first item on open.

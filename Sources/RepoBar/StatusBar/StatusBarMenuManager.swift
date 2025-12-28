@@ -167,6 +167,9 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             self.refreshIfNeededOnOpen()
             self.populateMainMenu(menu)
             self.refreshMenuViewHeights(in: menu)
+            DispatchQueue.main.async { [weak self] in
+                self?.clearHighlights(in: menu)
+            }
         }
     }
 

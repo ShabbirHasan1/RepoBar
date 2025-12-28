@@ -226,7 +226,7 @@ func printHelp(_ target: HelpTarget) {
         repobarcli - list repositories by activity, issues, PRs, stars
 
         Usage:
-          repobarcli [repos] [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--json] [--plain] [--sort KEY]
+          repobarcli [repos] [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--only-with VAL] [--json] [--plain] [--sort KEY]
           repobarcli login [--host URL] [--client-id ID] [--client-secret SECRET] [--loopback-port PORT]
           repobarcli logout
           repobarcli status [--json]
@@ -238,6 +238,7 @@ func printHelp(_ target: HelpTarget) {
           --event      Show activity event column (hidden by default)
           --forks      Include forked repositories (hidden by default)
           --archived   Include archived repositories (hidden by default)
+          --only-with  Only show repos that have issues and/or PRs (values: work, issues, prs)
           --json       Output JSON instead of formatted table
           --plain      Plain table output (no links, no colors, no URLs)
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event
@@ -249,7 +250,7 @@ func printHelp(_ target: HelpTarget) {
         repobarcli repos - list repositories
 
         Usage:
-          repobarcli repos [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--json] [--plain] [--sort KEY]
+          repobarcli repos [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--only-with VAL] [--json] [--plain] [--sort KEY]
 
         Options:
           --limit N    Max repositories to fetch (default: all accessible)
@@ -258,6 +259,7 @@ func printHelp(_ target: HelpTarget) {
           --event      Show activity event column (hidden by default)
           --forks      Include forked repositories (hidden by default)
           --archived   Include archived repositories (hidden by default)
+          --only-with  Only show repos that have issues and/or PRs (values: work, issues, prs)
           --json       Output JSON instead of formatted table
           --plain      Plain table output (no links, no colors, no URLs)
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event

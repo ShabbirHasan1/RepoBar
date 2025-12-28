@@ -43,6 +43,9 @@ struct ReposCommand: CommanderRunnableCommand {
     @Flag(names: [.customLong("archived"), .customLong("include-archived")], help: "Include archived repositories (hidden by default)")
     var includeArchived: Bool = false
 
+    @Option(name: .customLong("only-with"), help: "Only show repos that have issues and/or PRs (values: work, issues, prs)")
+    var onlyWith: OnlyWithSelection?
+
     @Option(name: .customLong("sort"), help: "Sort by activity, issues, prs, stars, repo, or event")
     var sort: RepositorySortKey = .activity
 
@@ -65,6 +68,7 @@ struct ReposCommand: CommanderRunnableCommand {
         self.includeEvent = values.flag("includeEvent")
         self.includeForks = values.flag("includeForks")
         self.includeArchived = values.flag("includeArchived")
+        self.onlyWith = try values.decodeOption("onlyWith")
     }
 
     mutating func run() async throws {
@@ -105,7 +109,12 @@ struct ReposCommand: CommanderRunnableCommand {
             guard let date = repo.activityDate else { return false }
             return date >= cutoff
         }
-        let filteredRepos = RepositoryFilter.apply(filtered, includeForks: self.includeForks, includeArchived: self.includeArchived)
+        let filteredRepos = RepositoryFilter.apply(
+            filtered,
+            includeForks: self.includeForks,
+            includeArchived: self.includeArchived,
+            onlyWith: self.onlyWith?.filter ?? .none
+        )
         var sorted = RepositorySort.sorted(filteredRepos, sortKey: self.sort)
         if self.includeRelease {
             sorted = try await self.attachLatestReleases(to: sorted, client: client)

@@ -32,4 +32,4 @@
 - mac app no longer crashes on launch due to the hidden keepalive window; Settings opens via AppKit action.
 - `pnpm start` now packages and launches a proper `.app` bundle (stable bundle identifier for menubar behavior).
 - Contribution heatmap date parsing handles both date-only and ISO8601 timestamps.
-- Sparkle updater initialization no longer uses `self` before `super.init`.
+- Sparkle updater initialization now defers controller setup until after `super.init`.

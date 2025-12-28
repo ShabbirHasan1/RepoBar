@@ -42,7 +42,7 @@ final class DisabledUpdaterController: UpdaterProviding {
 @MainActor
 final class SparkleController: NSObject {
     static let shared = SparkleController()
-    private let updater: UpdaterProviding
+    private var updater: UpdaterProviding
     let updateStatus: UpdateStatus
     private let defaultsKey = "autoUpdateEnabled"
 

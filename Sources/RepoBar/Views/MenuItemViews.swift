@@ -50,30 +50,28 @@ struct RepoMenuCardView: View {
 
     @ViewBuilder
     private var header: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(MenuCIBadge.dotColor(for: self.repo.ciStatus, isLightAppearance: self.isLightAppearance))
-                        .frame(width: 6, height: 6)
-                    Text(self.repo.title)
-                        .font(.subheadline)
-                        .fontWeight(.regular)
-                        .lineLimit(1)
-                    if self.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.caption2)
-                            .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                    }
-                }
-                if let release = repo.latestRelease {
-                    let date = self.repo.latestReleaseDate ?? ""
-                    Text(date.isEmpty ? release : "\(release) • \(date)")
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(MenuCIBadge.dotColor(for: self.repo.ciStatus, isLightAppearance: self.isLightAppearance))
+                    .frame(width: 6, height: 6)
+                Text(self.repo.title)
+                    .font(.subheadline)
+                    .fontWeight(.regular)
+                    .lineLimit(1)
+                if self.isPinned {
+                    Image(systemName: "pin.fill")
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                 }
             }
-            Spacer(minLength: 0)
+            Spacer(minLength: 6)
+            if let release = repo.latestRelease {
+                let date = self.repo.latestReleaseDate ?? ""
+                Text(date.isEmpty ? release : "\(release) • \(date)")
+                    .font(.caption2)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+            }
         }
     }
 

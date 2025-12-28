@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 @MainActor
 final class SettingsOpener {
@@ -12,6 +12,7 @@ final class SettingsOpener {
     }
 
     func open() {
+        NSApp.activate(ignoringOtherApps: true)
         self.openHandler?()
     }
 }

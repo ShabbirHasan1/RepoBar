@@ -232,10 +232,14 @@ struct GeneralSettingsView: View {
                     .onChange(of: self.session.settings.showContributionHeader) { _, _ in
                         self.appState.persistSettings()
                     }
-                Toggle("Show heatmap", isOn: self.$session.settings.showHeatmap)
-                    .onChange(of: self.session.settings.showHeatmap) { _, _ in
-                        self.appState.persistSettings()
+                Picker("Repository heatmap", selection: self.$session.settings.heatmapDisplay) {
+                    ForEach(HeatmapDisplay.allCases, id: \.self) { display in
+                        Text(display.label).tag(display)
                     }
+                }
+                .onChange(of: self.session.settings.heatmapDisplay) { _, _ in
+                    self.appState.persistSettings()
+                }
                 Picker("Heatmap window", selection: self.$session.settings.heatmapSpan) {
                     ForEach(HeatmapSpan.allCases, id: \.self) { span in
                         Text(span.label).tag(span)
@@ -244,7 +248,7 @@ struct GeneralSettingsView: View {
                 } header: {
                 Text("Display")
                 } footer: {
-                Text("Heatmaps show recent commit activity for each repository.")
+                Text("Repository heatmaps show recent commit activity for each repository.")
                 }
 
                 Section {

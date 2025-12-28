@@ -269,6 +269,7 @@ final class AppState {
         // If hidden, also unpin to avoid stale pin list.
         self.session.settings.pinnedRepositories.removeAll { $0 == fullName }
         self.settingsStore.save(self.session.settings)
+        self.session.repositories.removeAll { $0.fullName == fullName }
         await self.refresh()
     }
 
@@ -316,7 +317,7 @@ final class AppState {
 
     /// Preloads the user's contribution heatmap so the header can render without remote images.
     func loadContributionHeatmapIfNeeded(for username: String) async {
-        guard self.session.settings.showContributionHeader, self.session.settings.showHeatmap, self.session.hasLoadedRepositories else { return }
+        guard self.session.settings.showContributionHeader, self.session.hasLoadedRepositories else { return }
         if self.session.contributionUser == username, !self.session.contributionHeatmap.isEmpty { return }
         let hasExisting = self.session.contributionUser == username && !self.session.contributionHeatmap.isEmpty
         if let cached = ContributionCacheStore.load(), cached.username == username, cached.isValid {

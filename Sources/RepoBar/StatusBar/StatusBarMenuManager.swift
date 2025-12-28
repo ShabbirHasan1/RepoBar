@@ -208,7 +208,6 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let settings = session.settings
 
         if settings.showContributionHeader,
-           settings.showHeatmap,
            let username = self.currentUsername(),
            let displayName = self.currentDisplayName()
         {
@@ -294,7 +293,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                     repo: repo,
                     isPinned: isPinned,
                     showsSeparator: index < repos.count - 1,
-                    showHeatmap: settings.showHeatmap,
+                    showHeatmap: settings.heatmapDisplay == .inline,
                     heatmapSpan: settings.heatmapSpan,
                     accentTone: settings.accentTone,
                     onOpen: { [weak self] in
@@ -321,6 +320,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self
+        let settings = self.appState.session.settings
 
         menu.addItem(self.actionItem(
             title: "Open \(repo.title)",
@@ -360,6 +360,20 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 action: #selector(self.openActivity),
                 represented: repo.title,
                 systemImage: "clock.arrow.circlepath"))
+        }
+
+        if settings.heatmapDisplay == .submenu, !repo.heatmap.isEmpty {
+            let filtered = HeatmapFilter.filter(
+                repo.heatmap,
+                span: settings.heatmapSpan,
+                now: Date(),
+                alignToWeek: true
+            )
+            let heatmap = HeatmapView(cells: filtered, accentTone: settings.accentTone, height: 44)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+            menu.addItem(.separator())
+            menu.addItem(self.viewItem(for: heatmap, enabled: false))
         }
 
         let activityItems = self.repoActivityItems(for: repo)
@@ -716,6 +730,7 @@ private final class MenuItemHostingView: NSHostingView<AnyView>, MenuItemMeasuri
     private let highlightState: MenuItemHighlightState?
 
     override var allowsVibrancy: Bool { true }
+    override var focusRingType: NSFocusRingType { .none }
 
     override var intrinsicContentSize: NSSize {
         let size = super.intrinsicContentSize

@@ -7,7 +7,7 @@ public struct UserSettings: Equatable, Codable {
     public var showArchived = false
     public var refreshInterval: RefreshInterval = .fiveMinutes
     public var launchAtLogin = false
-    public var showHeatmap = true
+    public var heatmapDisplay: HeatmapDisplay = .inline
     public var heatmapSpan: HeatmapSpan = .twelveMonths
     public var cardDensity: CardDensity = .comfortable
     public var accentTone: AccentTone = .githubGreen
@@ -32,6 +32,18 @@ public enum RefreshInterval: CaseIterable, Equatable, Codable {
         case .twoMinutes: 120
         case .fiveMinutes: 300
         case .fifteenMinutes: 900
+        }
+    }
+}
+
+public enum HeatmapDisplay: String, CaseIterable, Equatable, Codable {
+    case inline
+    case submenu
+
+    public var label: String {
+        switch self {
+        case .inline: "Inline"
+        case .submenu: "Submenu"
         }
     }
 }

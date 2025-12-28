@@ -27,31 +27,29 @@ struct ContributionHeaderView: View {
     }
 
     var body: some View {
-        if self.session.settings.showHeatmap {
-            Button {
-                self.openProfile()
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Contributions · \(self.displayName) · last \(self.session.settings.heatmapSpan.label)")
-                        .font(.caption2)
-                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                    self.content
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+        Button {
+            self.openProfile()
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Contributions · \(self.displayName) · last \(self.session.settings.heatmapSpan.label)")
+                    .font(.caption2)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                self.content
             }
-            .buttonStyle(.plain)
-            .task(id: self.session.hasLoadedRepositories) {
-                guard self.session.hasLoadedRepositories else { return }
-                let hasHeatmap = self.hasCachedHeatmap
-                self.isLoading = !hasHeatmap
-                self.failed = false
-                await self.appState.loadContributionHeatmapIfNeeded(for: self.username)
-                await MainActor.run {
-                    self.isLoading = false
-                    let hasData = self.hasCachedHeatmap
-                    self.failed = !hasData && self.session.contributionError != nil
-                }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .task(id: self.session.hasLoadedRepositories) {
+            guard self.session.hasLoadedRepositories else { return }
+            let hasHeatmap = self.hasCachedHeatmap
+            self.isLoading = !hasHeatmap
+            self.failed = false
+            await self.appState.loadContributionHeatmapIfNeeded(for: self.username)
+            await MainActor.run {
+                self.isLoading = false
+                let hasData = self.hasCachedHeatmap
+                self.failed = !hasData && self.session.contributionError != nil
             }
         }
     }

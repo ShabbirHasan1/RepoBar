@@ -238,7 +238,7 @@ struct RateLimitBanner: View {
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: "clock.fill")
                 .foregroundStyle(.orange)
             Text("Rate limit resets \(RelativeFormatter.string(from: self.reset, relativeTo: Date()))")
@@ -260,7 +260,7 @@ struct ErrorBanner: View {
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
             Text(self.message)
@@ -317,7 +317,7 @@ struct MenuRepoFiltersView: View {
             .controlSize(.mini)
             .fixedSize()
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 2)
 
             Image(systemName: "arrow.up.arrow.down")
                 .font(.caption2)

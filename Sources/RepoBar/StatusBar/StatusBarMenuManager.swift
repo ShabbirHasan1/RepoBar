@@ -267,8 +267,8 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let showFilters = session.hasLoadedRepositories
         if showFilters {
             let filters = MenuRepoFiltersView(session: session)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 3)
             menu.addItem(self.viewItem(for: filters, enabled: true))
             menu.addItem(.separator())
         }

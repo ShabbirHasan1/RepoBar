@@ -2,14 +2,14 @@ import RepoBarCore
 
 enum MenuRepoSelection: String, CaseIterable, Hashable {
     case all
-    case work
     case pinned
+    case work
 
     var label: String {
         switch self {
         case .all: "All"
-        case .work: "Work"
         case .pinned: "Pinned"
+        case .work: "Work"
         }
     }
 

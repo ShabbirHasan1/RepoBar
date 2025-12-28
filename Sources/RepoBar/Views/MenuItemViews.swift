@@ -64,7 +64,7 @@ struct RepoMenuCardView: View {
                     }
                 }
                 if let release = repo.latestRelease {
-                    let date = self.repo.latestReleaseDate
+                    let date = self.repo.latestReleaseDate ?? ""
                     Text(date.isEmpty ? release : "\(release) • \(date)")
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))

@@ -9,11 +9,6 @@ struct PullRequestMenuItemView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "arrow.triangle.branch")
-                .font(.caption)
-                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                .padding(.top, 1)
-
             self.avatar
 
             VStack(alignment: .leading, spacing: 4) {
@@ -56,11 +51,7 @@ struct PullRequestMenuItemView: View {
                     }
                 }
 
-                if let head = self.pullRequest.headRefName,
-                   let base = self.pullRequest.baseRefName,
-                   head.isEmpty == false,
-                   base.isEmpty == false
-                {
+                if let head = self.pullRequest.headRefName, let base = self.pullRequest.baseRefName, head.isEmpty == false, base.isEmpty == false {
                     Text("\(head) → \(base)")
                         .font(.caption2)
                         .monospaced()

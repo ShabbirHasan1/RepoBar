@@ -9,11 +9,6 @@ struct IssueMenuItemView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "exclamationmark.circle")
-                .font(.caption)
-                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                .padding(.top, 1)
-
             self.avatar
 
             VStack(alignment: .leading, spacing: 4) {

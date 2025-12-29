@@ -69,6 +69,32 @@ struct LocalProjectsServiceTests {
     }
 
     @Test
+    func snapshot_discoveredRepoCount_includesAllDiscoveredEvenWhenFiltered() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let repoA = root.appendingPathComponent("repo-a", isDirectory: true)
+        let nested = root.appendingPathComponent("group", isDirectory: true)
+        let repoB = nested.appendingPathComponent("repo-b", isDirectory: true)
+        try FileManager.default.createDirectory(at: repoA, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: repoB, withIntermediateDirectories: true)
+
+        try initializeRepo(at: repoA, origin: "git@github.com:foo/repo-a.git")
+        try initializeRepo(at: repoB, origin: "https://github.com/foo/repo-b.git")
+
+        let snapshot = await LocalProjectsService().snapshot(
+            rootPath: root.path,
+            maxDepth: 2,
+            autoSyncEnabled: false,
+            includeOnlyRepoNames: ["does-not-exist"],
+            concurrencyLimit: 1
+        )
+
+        #expect(snapshot.discoveredRepoCount == 2)
+        #expect(snapshot.statuses.isEmpty)
+    }
+
+    @Test
     func snapshot_autoSync_fastForwardPullsBehindRepos() async throws {
         let base = try makeTempDirectory()
         defer { try? FileManager.default.removeItem(at: base) }

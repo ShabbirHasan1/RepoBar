@@ -22,4 +22,21 @@ struct SettingsStoreTests {
         store.save(settings)
         #expect(store.load() == settings)
     }
+
+    @Test
+    func saveAndLoad_persistsLocalProjectsBookmark() throws {
+        let suiteName = "repobar.settings.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let store = SettingsStore(defaults: defaults)
+        var settings = UserSettings()
+        settings.localProjects.rootPath = "~/Projects"
+        settings.localProjects.rootBookmarkData = Data([0x01, 0x02, 0x03, 0x04])
+
+        store.save(settings)
+        let loaded = store.load()
+        #expect(loaded.localProjects.rootPath == "~/Projects")
+        #expect(loaded.localProjects.rootBookmarkData == Data([0x01, 0x02, 0x03, 0x04]))
+    }
 }

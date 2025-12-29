@@ -403,7 +403,10 @@ final class StatusBarMenuBuilder {
             hidden: Set(settings.repoList.hiddenRepositories),
             pinPriority: true
         )
-        let sorted = RepositoryPipeline.apply(session.repositories, query: query)
+        let baseRepos = session.repositories.isEmpty
+            ? (session.menuSnapshot?.repositories ?? [])
+            : session.repositories
+        let sorted = RepositoryPipeline.apply(baseRepos, query: query)
         return sorted.map { RepositoryDisplayModel(repo: $0) }
     }
 

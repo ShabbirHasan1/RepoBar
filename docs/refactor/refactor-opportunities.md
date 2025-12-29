@@ -139,11 +139,11 @@ Last updated: 2025-12-28
 
 ## Performance
 
-### [ ] 21) Preload strategy
+### [x] 21) Preload strategy
 - Cache last menu snapshot and reuse on reopen.
 - Only refresh in background if stale.
 
-### [ ] 22) Lazy hydration
+### [x] 22) Lazy hydration
 - Hydrate only visible rows, then opportunistically hydrate next page.
 
 ## Incremental Plan Ideas

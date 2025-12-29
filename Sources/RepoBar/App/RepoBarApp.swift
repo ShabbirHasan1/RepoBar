@@ -86,11 +86,11 @@ final class AppState {
     let github = GitHubClient()
     let refreshScheduler = RefreshScheduler()
     private let settingsStore = SettingsStore()
-    private var lastMenuRefresh: Date?
     private let menuRefreshInterval: TimeInterval = 30
     private var refreshTask: Task<Void, Never>?
     private var refreshTaskToken = UUID()
     private let hydrateConcurrencyLimit = 4
+    private var prefetchTask: Task<Void, Never>?
 
     // Default GitHub App values for convenience login from the main window.
     private let defaultClientID = RepoBarAuthDefaults.clientID
@@ -114,16 +114,18 @@ final class AppState {
 
     func refreshIfNeededForMenu() {
         let now = Date()
-        if let lastMenuRefresh, now.timeIntervalSince(lastMenuRefresh) < self.menuRefreshInterval {
+        if let snapshot = self.session.menuSnapshot,
+           snapshot.isStale(now: now, interval: self.menuRefreshInterval) == false
+        {
             return
         }
-        self.lastMenuRefresh = now
         self.requestRefresh(cancelInFlight: true)
     }
 
     func requestRefresh(cancelInFlight: Bool = false) {
         if cancelInFlight {
             self.refreshTask?.cancel()
+            self.prefetchTask?.cancel()
         }
         guard cancelInFlight || self.refreshTask == nil else { return }
         let token = UUID()
@@ -173,6 +175,8 @@ final class AppState {
             if self.auth.loadTokens() == nil {
                 await MainActor.run {
                     self.session.repositories = []
+                    self.session.menuSnapshot = nil
+                    self.session.hasLoadedRepositories = false
                     self.session.lastError = nil
                 }
                 return
@@ -192,7 +196,8 @@ final class AppState {
             try Task.checkCancellation()
             let merged = self.mergeHydrated(hydrated, into: ordered)
             let final = self.applyPinnedOrder(to: merged)
-            await self.updateSession(with: final)
+            await self.updateSession(with: final, now: now)
+            self.prefetchMenuTargets(from: final, visibleCount: targets.count, token: self.refreshTaskToken)
             let reset = await self.github.rateLimitReset(now: now)
             let message = await self.github.rateLimitMessage(now: now)
             await MainActor.run {
@@ -291,12 +296,42 @@ final class AppState {
         }
     }
 
-    private func updateSession(with repos: [Repository]) async {
+    private func updateSession(with repos: [Repository], now: Date) async {
         await MainActor.run {
             self.session.repositories = repos
+            self.session.menuSnapshot = MenuSnapshot(repositories: repos, capturedAt: now)
             self.session.hasLoadedRepositories = true
             self.session.rateLimitReset = nil
             self.session.lastError = nil
+        }
+    }
+
+    private func prefetchMenuTargets(
+        from repos: [Repository],
+        visibleCount: Int,
+        token: UUID
+    ) {
+        guard let limit = self.session.settings.repoList.displayLimit, limit > 0 else { return }
+        let startIndex = min(visibleCount, repos.count)
+        let prefetchTargets = Array(repos.dropFirst(startIndex).prefix(limit))
+        guard prefetchTargets.isEmpty == false else { return }
+
+        self.prefetchTask?.cancel()
+        self.prefetchTask = Task(priority: .utility) { [weak self] in
+            guard let self else { return }
+            let hydrated = await self.hydrateMenuTargets(prefetchTargets)
+            guard Task.isCancelled == false, hydrated.isEmpty == false else { return }
+            await MainActor.run {
+                guard self.refreshTaskToken == token else { return }
+                let merged = self.mergeHydrated(hydrated, into: self.session.repositories)
+                self.session.repositories = merged
+                if let snapshot = self.session.menuSnapshot {
+                    self.session.menuSnapshot = MenuSnapshot(
+                        repositories: merged,
+                        capturedAt: snapshot.capturedAt
+                    )
+                }
+            }
         }
     }
 
@@ -442,6 +477,7 @@ final class AppState {
 final class Session {
     var account: AccountState = .loggedOut
     var repositories: [Repository] = []
+    var menuSnapshot: MenuSnapshot?
     var hasLoadedRepositories = false
     var settings = UserSettings()
     var rateLimitReset: Date?

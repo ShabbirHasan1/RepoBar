@@ -7,8 +7,6 @@ import SwiftUI
 final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private let appState: AppState
     private var mainMenu: NSMenu?
-    private var lastMenuRefresh: Date?
-    private let menuRefreshInterval: TimeInterval = 30
     private lazy var menuBuilder = StatusBarMenuBuilder(appState: self.appState, target: self)
 
     init(appState: AppState) {
@@ -168,7 +166,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         menu.appearance = NSApp.effectiveAppearance
         if menu === self.mainMenu {
-            self.refreshIfNeededOnOpen()
+            self.appState.refreshIfNeededForMenu()
             self.menuBuilder.populateMainMenu(menu)
             self.menuBuilder.refreshMenuViewHeights(in: menu)
             DispatchQueue.main.async { [weak self] in
@@ -224,14 +222,5 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     }
 
     @objc func menuItemNoOp(_: NSMenuItem) {}
-
-    private func refreshIfNeededOnOpen() {
-        let now = Date()
-        if let lastMenuRefresh, now.timeIntervalSince(lastMenuRefresh) < self.menuRefreshInterval {
-            return
-        }
-        self.lastMenuRefresh = now
-        self.refreshNow()
-    }
 
 }

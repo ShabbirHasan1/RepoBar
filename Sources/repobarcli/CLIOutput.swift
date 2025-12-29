@@ -90,7 +90,7 @@ func tableLines(
     let releaseWidth = max(releaseHeader.count, rows.map { $0.repo.latestRelease?.tag.count ?? 1 }.max() ?? 1)
     let releasedWidth = max(
         releasedHeader.count,
-        rows.map { $0.repo.latestRelease.map { formatReleasedLabel($0.publishedAt, now: now).count } ?? 1 }.max() ?? 1
+        rows.map { $0.repo.latestRelease.map { ReleaseFormatter.releasedLabel(for: $0.publishedAt, now: now).count } ?? 1 }.max() ?? 1
     )
 
     var headerParts = [
@@ -120,7 +120,10 @@ func tableLines(
         let activity = padRight(row.activityLabel, to: activityWidth)
         let event = padRight(row.activityLine.singleLine, to: eventWidth)
         let rel = padRight(row.repo.latestRelease?.tag ?? "-", to: releaseWidth)
-        let released = padRight(row.repo.latestRelease.map { formatReleasedLabel($0.publishedAt, now: now) } ?? "-", to: releasedWidth)
+        let released = padRight(
+            row.repo.latestRelease.map { ReleaseFormatter.releasedLabel(for: $0.publishedAt, now: now) } ?? "-",
+            to: releasedWidth
+        )
         let repoName = row.repo.fullName
         let repoURL = makeRepoURL(baseHost: baseHost, repo: row.repo)
         let repoLabel = formatRepoLabel(
@@ -237,29 +240,4 @@ func formatURL(_ url: URL, linkEnabled: Bool) -> String {
         return Ansi.link(url.absoluteString, url: url, enabled: true)
     }
     return url.absoluteString
-}
-
-func formatDateYYYYMMDD(_ date: Date) -> String {
-    DateFormatters.yyyyMMdd.string(from: date)
-}
-
-private enum DateFormatters {
-    static let yyyyMMdd: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
-}
-
-func formatReleasedLabel(_ date: Date, now: Date = Date()) -> String {
-    let calendar = Calendar.current
-    if calendar.isDate(date, inSameDayAs: now) { return "today" }
-    if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
-       calendar.isDate(date, inSameDayAs: yesterday)
-    {
-        return "yesterday"
-    }
-    return formatDateYYYYMMDD(date)
 }

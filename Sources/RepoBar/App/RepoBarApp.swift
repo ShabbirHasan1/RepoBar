@@ -227,6 +227,10 @@ final class AppState {
         let selection = self.session.menuRepoSelection
         let settings = self.session.settings
         let scope: RepositoryScope = selection.isPinnedScope ? .pinned : .all
+        let ageCutoff = RepositoryQueryDefaults.ageCutoff(
+            scope: scope,
+            ageDays: RepositoryQueryDefaults.defaultAgeDays
+        )
         return RepositoryQuery(
             scope: scope,
             onlyWith: selection.onlyWith,
@@ -234,6 +238,7 @@ final class AppState {
             includeArchived: settings.repoList.showArchived,
             sortKey: settings.repoList.menuSortKey,
             limit: settings.repoList.displayLimit,
+            ageCutoff: ageCutoff,
             pinned: settings.repoList.pinnedRepositories,
             hidden: Set(settings.repoList.hiddenRepositories),
             pinPriority: true

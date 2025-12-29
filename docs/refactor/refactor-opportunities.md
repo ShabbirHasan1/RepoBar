@@ -112,11 +112,11 @@ Last updated: 2025-12-28
 
 ## CLI + Menu Parity
 
-### [ ] 16) Align filters and defaults
+### [x] 16) Align filters and defaults
 - CLI has age cutoff; menu does not. Decide on common default.
 - `onlyWith` filter should behave identically in menu and CLI.
 
-### [ ] 17) Shared formatters
+### [x] 17) Shared formatters
 - Shared formatting for:
   - ages and time labels
   - event labels

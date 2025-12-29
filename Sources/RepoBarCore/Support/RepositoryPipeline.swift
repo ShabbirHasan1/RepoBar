@@ -43,6 +43,19 @@ public struct RepositoryQuery: Equatable, Sendable {
     }
 }
 
+public enum RepositoryQueryDefaults {
+    public static let defaultAgeDays = 365
+
+    public static func ageCutoff(
+        now: Date = Date(),
+        scope: RepositoryScope,
+        ageDays: Int = defaultAgeDays
+    ) -> Date? {
+        guard scope == .all, ageDays > 0 else { return nil }
+        return Calendar.current.date(byAdding: .day, value: -ageDays, to: now)
+    }
+}
+
 public enum RepositoryPipeline {
     public static func apply(_ repos: [Repository], query: RepositoryQuery) -> [Repository] {
         var filtered = repos

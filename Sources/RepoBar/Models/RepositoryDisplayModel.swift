@@ -50,8 +50,7 @@ struct RepositoryDisplayModel: Identifiable, Equatable {
         self.rateLimitedUntil = repo.rateLimitedUntil
 
         if let release = repo.latestRelease {
-            let date = RelativeFormatter.string(from: release.publishedAt, relativeTo: now)
-            self.releaseLine = "\(release.name) • \(date)"
+            self.releaseLine = ReleaseFormatter.menuLine(for: release, now: now)
         } else {
             self.releaseLine = nil
         }

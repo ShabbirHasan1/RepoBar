@@ -32,7 +32,7 @@ struct ReposCommand: CommanderRunnableCommand {
     var limit: Int?
 
     @Option(name: .customLong("age"), help: "Max age in days for repo activity (default: 365)")
-    var age: Int = 365
+    var age: Int = RepositoryQueryDefaults.defaultAgeDays
 
     @Flag(names: [.customLong("release")], help: "Include latest release tag and date")
     var includeRelease: Bool = false
@@ -128,9 +128,11 @@ struct ReposCommand: CommanderRunnableCommand {
         let effectiveOnlyWith = self.filter?.onlyWith ?? self.onlyWith?.filter ?? .none
         let hidden = Set(settings.repoList.hiddenRepositories)
         let pinned = settings.repoList.pinnedRepositories.filter { !hidden.contains($0) }
-        let ageCutoff = effectiveScope == .all
-            ? Calendar.current.date(byAdding: .day, value: -self.age, to: now)
-            : nil
+        let ageCutoff = RepositoryQueryDefaults.ageCutoff(
+            now: now,
+            scope: effectiveScope.repositoryScope,
+            ageDays: self.age
+        )
         let query = RepositoryQuery(
             scope: effectiveScope.repositoryScope,
             onlyWith: effectiveOnlyWith,

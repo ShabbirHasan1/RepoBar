@@ -7,7 +7,8 @@ let package = Package(
         .macOS(.v15),
     ],
     products: [
-        .executable(name: "repobar", targets: ["repobarcli"]),
+        // Named to avoid colliding with `RepoBar` on case-insensitive filesystems.
+        .executable(name: "repobarcli", targets: ["repobarcli"]),
     ],
     dependencies: [
         .package(url: "https://github.com/steipete/Commander", from: "0.2.0"),

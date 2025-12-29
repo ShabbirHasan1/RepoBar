@@ -34,7 +34,7 @@ kill_existing
 
 log "==> swift build"
 swift build -q
-swift build -q --product repobar
+swift build -q --product repobarcli
 
 log "==> swift test"
 swift test -q
@@ -50,7 +50,7 @@ fi
 
 log "==> Launching debug build"
 APP_BUNDLE="${ROOT_DIR}/.build/debug/${APP_NAME}.app"
-EXPECTED_PROCESS="${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+EXPECTED_PROCESS_RESOLVED="$(cd "${APP_BUNDLE}" && pwd -P)/Contents/MacOS/${APP_NAME}"
 if [ -d "${APP_BUNDLE}" ]; then
   # Launch via LaunchServices so the process has a proper bundle identifier (menubar item, single-instance, URL handlers).
   open -n -g "${APP_BUNDLE}"
@@ -61,15 +61,44 @@ fi
 sleep 1
 
 if [ -d "${APP_BUNDLE}" ]; then
-  for _ in {1..10}; do
-    if pgrep -f "${EXPECTED_PROCESS}" >/dev/null 2>&1; then
-      break
-    fi
+  proc_pidpath() {
+    python3 - "$1" <<'PY'
+import ctypes
+import sys
+
+pid = int(sys.argv[1])
+buf = ctypes.create_string_buffer(4096)
+lib = ctypes.CDLL("/usr/lib/libproc.dylib")
+ret = lib.proc_pidpath(pid, buf, ctypes.sizeof(buf))
+if ret <= 0:
+    raise SystemExit(1)
+print(buf.value.decode("utf-8", errors="replace"))
+PY
+  }
+
+  launched_from_checkout=0
+  for _ in {1..50}; do
+    while read -r pid; do
+      path="$(proc_pidpath "${pid}" 2>/dev/null || true)"
+      if [ -n "${path}" ] && [ "${path}" = "${EXPECTED_PROCESS_RESOLVED}" ]; then
+        launched_from_checkout=1
+        break
+      fi
+    done < <(pgrep -x "${APP_NAME}" || true)
+
+    if [ "${launched_from_checkout}" -eq 1 ]; then break; fi
     sleep 0.2
   done
 
-  if ! pgrep -f "${EXPECTED_PROCESS}" >/dev/null 2>&1; then
+  if [ "${launched_from_checkout}" -ne 1 ]; then
     log "ERROR: ${APP_NAME} did not launch from this checkout."
+    log "Expected: ${EXPECTED_PROCESS_RESOLVED}"
+    while read -r pid; do
+      path="$(proc_pidpath "${pid}" 2>/dev/null || true)"
+      if [ -n "${path}" ]; then
+        log "Running: ${path}"
+      fi
+    done < <(pgrep -x "${APP_NAME}" || true)
     log "Hint: another RepoBar build may be running from a different path; run:"
     log "  pgrep -af \"${APP_PROCESS_PATTERN}\""
     exit 1

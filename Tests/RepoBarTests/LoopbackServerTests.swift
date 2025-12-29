@@ -20,19 +20,27 @@ struct LoopbackServerTests {
         let expectedCode = "code-1"
         let expectedState = "state-1"
 
+        var components = URLComponents(url: redirectURL, resolvingAgainstBaseURL: false)!
+        components.queryItems = [
+            URLQueryItem(name: "code", value: expectedCode),
+            URLQueryItem(name: "state", value: expectedState)
+        ]
+        let callbackURL = components.url!
+
         let sendTask = Task {
-            try await Task.sleep(nanoseconds: 120_000_000)
-            var components = URLComponents(url: redirectURL, resolvingAgainstBaseURL: false)!
-            components.queryItems = [
-                URLQueryItem(name: "code", value: expectedCode),
-                URLQueryItem(name: "state", value: expectedState)
-            ]
-            // Best-effort fire-and-forget; if this fails, the test still fails by timing out on the server side.
-            _ = try? await URLSession.shared.data(from: components.url!)
+            let deadline = Date().addingTimeInterval(2)
+            while !Task.isCancelled, Date() < deadline {
+                do {
+                    _ = try await URLSession.shared.data(from: callbackURL)
+                    return
+                } catch {
+                    try? await Task.sleep(nanoseconds: 50_000_000)
+                }
+            }
         }
         defer { sendTask.cancel() }
 
-        let result = try await server.waitForCallback(timeout: 3)
+        let result = try await server.waitForCallback(timeout: 5)
         #expect(result.code == expectedCode)
         #expect(result.state == expectedState)
     }

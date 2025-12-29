@@ -39,6 +39,7 @@ final class HeatmapRasterNSView: NSView {
         let cellSide: CGFloat
         let xSpacing: CGFloat
         let xOffset: CGFloat
+        let scale: CGFloat
     }
 
     private var cachedGeometryKey: GeometryKey?
@@ -103,9 +104,16 @@ final class HeatmapRasterNSView: NSView {
 
         let columns = HeatmapLayout.columnCount(cellCount: self.cells.count)
         let cellSide = HeatmapLayout.cellSide(forHeight: boundsSize.height, width: boundsSize.width, columns: columns)
-        let xSpacing = Self.xSpacing(availableWidth: boundsSize.width, columns: columns, cellSide: cellSide, scale: scale)
+        let xSpacing = Self.xSpacing(availableWidth: boundsSize.width, columns: columns, cellSide: cellSide)
         let contentWidth = Self.contentWidth(columns: columns, cellSide: cellSide, xSpacing: xSpacing)
-        let xOffset = HeatmapLayout.centeredInset(available: boundsSize.width, content: contentWidth)
+        let xOffset = Self.balancedInset(
+            availableWidth: boundsSize.width,
+            columns: columns,
+            cellSide: cellSide,
+            xSpacing: xSpacing,
+            contentWidth: contentWidth,
+            scale: scale
+        )
 
         let (buckets, bucketHash) = self.ensureBuckets(columns: columns)
         let geometryKey = GeometryKey(
@@ -114,7 +122,8 @@ final class HeatmapRasterNSView: NSView {
             size: boundsSize,
             cellSide: cellSide,
             xSpacing: xSpacing,
-            xOffset: xOffset
+            xOffset: xOffset,
+            scale: scale
         )
         let rectsByBucket = self.ensureRects(
             geometryKey: geometryKey,
@@ -135,6 +144,7 @@ final class HeatmapRasterNSView: NSView {
             "c\(columns)",
             "cs\(Int(cellSide * 100))",
             "xs\(Int(xSpacing * 100))",
+            "xo\(Int(xOffset * 100))",
             "cr\(Int(cornerRadius * 100))",
             "w\(widthPx)",
             "h\(heightPx)",
@@ -212,11 +222,26 @@ final class HeatmapRasterNSView: NSView {
 
         let stepX = cellSide + xSpacing
         let stepY = cellSide + HeatmapLayout.spacing
+
+        var columnX: [CGFloat] = []
+        columnX.reserveCapacity(geometryKey.columns)
+        for column in 0 ..< geometryKey.columns {
+            let x = xOffset + CGFloat(column) * stepX
+            columnX.append(Self.snapToPixel(x, scale: geometryKey.scale))
+        }
+
+        var rowY: [CGFloat] = []
+        rowY.reserveCapacity(HeatmapLayout.rows)
+        for row in 0 ..< HeatmapLayout.rows {
+            let y = CGFloat(row) * stepY
+            rowY.append(Self.snapToPixel(y, scale: geometryKey.scale))
+        }
+
         for index in 0 ..< buckets.count {
             let bucket = Int(buckets[index])
             let column = index / HeatmapLayout.rows
             let row = index % HeatmapLayout.rows
-            let origin = CGPoint(x: xOffset + CGFloat(column) * stepX, y: CGFloat(row) * stepY)
+            let origin = CGPoint(x: columnX[column], y: rowY[row])
             let rect = CGRect(origin: origin, size: CGSize(width: cellSide, height: cellSide))
             rectsByBucket[bucket].append(rect)
         }
@@ -247,18 +272,60 @@ final class HeatmapRasterNSView: NSView {
         return (palette, hash)
     }
 
-    private static func xSpacing(availableWidth: CGFloat, columns: Int, cellSide: CGFloat, scale: CGFloat) -> CGFloat {
+    private static func xSpacing(availableWidth: CGFloat, columns: Int, cellSide: CGFloat) -> CGFloat {
         guard columns > 1 else { return 0 }
 
         let base = HeatmapLayout.spacing
         let ideal = (availableWidth - CGFloat(columns) * cellSide) / CGFloat(columns - 1)
-        let clamped = max(base, ideal)
-        return max(base, round(clamped * scale) / scale)
+        return max(base, ideal)
     }
 
     private static func contentWidth(columns: Int, cellSide: CGFloat, xSpacing: CGFloat) -> CGFloat {
         let totalSpacingX = CGFloat(max(columns - 1, 0)) * xSpacing
         return CGFloat(max(columns, 0)) * cellSide + totalSpacingX
+    }
+
+    private static func balancedInset(
+        availableWidth: CGFloat,
+        columns: Int,
+        cellSide: CGFloat,
+        xSpacing: CGFloat,
+        contentWidth: CGFloat,
+        scale: CGFloat
+    ) -> CGFloat {
+        guard availableWidth > contentWidth, columns > 0 else { return 0 }
+
+        let stepX = cellSide + xSpacing
+        let ideal = (availableWidth - contentWidth) / 2
+        let step = 1 / max(scale, 1)
+
+        var best = Self.snapToPixel(ideal, scale: scale)
+        var bestScore = CGFloat.greatestFiniteMagnitude
+
+        var candidates: [CGFloat] = []
+        candidates.reserveCapacity(5)
+        for delta in -2 ... 2 {
+            candidates.append(Self.snapToPixel(ideal + CGFloat(delta) * step, scale: scale))
+        }
+
+        for offset in Array(Set(candidates)).sorted() {
+            let left = Self.snapToPixel(offset, scale: scale)
+            let lastX = Self.snapToPixel(left + CGFloat(columns - 1) * stepX, scale: scale)
+            let rightEdge = lastX + cellSide
+            let rightGap = availableWidth - rightEdge
+            let score = abs(left - rightGap) + (rightGap < 0 ? abs(rightGap) * 10 : 0)
+            if score < bestScore {
+                bestScore = score
+                best = left
+            }
+        }
+
+        return best
+    }
+
+    private static func snapToPixel(_ value: CGFloat, scale: CGFloat) -> CGFloat {
+        guard scale > 0 else { return value }
+        return round(value * scale) / scale
     }
 
     private static func bucketIndex(for count: Int) -> UInt8 {

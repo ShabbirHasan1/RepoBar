@@ -60,3 +60,4 @@
 - Activity labels now use readable event names and prefer issue/PR titles over raw event types.
 - Menu no longer preselects the first item on open.
 - Fixed a crash when opening menus with the raster heatmap renderer.
+- Heatmaps now pixel-align to avoid uneven left/right padding in the menu.

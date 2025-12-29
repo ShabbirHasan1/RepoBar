@@ -20,77 +20,13 @@ struct HeatmapView: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let size = proxy.size
-            let columns = HeatmapLayout.columnCount(cellCount: self.cells.count)
-            let cellSide = HeatmapLayout.cellSide(
-                forHeight: size.height,
-                width: size.width,
-                columns: columns
-            )
-            let grid = HeatmapLayout.reshape(cells: self.cells, columns: columns)
-            let contentWidth = HeatmapLayout.contentWidth(columns: columns, cellSide: cellSide)
-            let xOffset = HeatmapLayout.centeredInset(available: size.width, content: contentWidth)
-            Canvas { context, _ in
-                for (x, column) in grid.enumerated() {
-                    for (y, cell) in column.enumerated() {
-                        let origin = CGPoint(
-                            x: xOffset + CGFloat(x) * (cellSide + HeatmapLayout.spacing),
-                            y: CGFloat(y) * (cellSide + HeatmapLayout.spacing)
-                        )
-                        let rect = CGRect(origin: origin, size: CGSize(width: cellSide, height: cellSide))
-                        let path = Path(roundedRect: rect, cornerRadius: cellSide * HeatmapLayout.cornerRadiusFactor)
-                        context.fill(path, with: .color(self.color(for: cell.count)))
-                    }
-                }
-            }
+            HeatmapRasterView(cells: self.cells, accentTone: self.accentTone, isHighlighted: self.isHighlighted)
+                .frame(width: proxy.size.width, height: proxy.size.height)
         }
         .frame(maxWidth: .infinity, alignment: .center)
         .frame(height: self.height)
         .accessibilityLabel(self.summary)
         .accessibilityElement(children: .ignore)
-    }
-
-    private func color(for count: Int) -> Color {
-        let palette = self.palette()
-        switch count {
-        case 0: return palette[0]
-        case 1 ... 3: return palette[1]
-        case 4 ... 7: return palette[2]
-        case 8 ... 12: return palette[3]
-        default: return palette[4]
-        }
-    }
-
-    private func palette() -> [Color] {
-        if self.isHighlighted {
-            let base = Color(nsColor: .selectedMenuItemTextColor)
-            return [
-                base.opacity(0.36),
-                base.opacity(0.56),
-                base.opacity(0.72),
-                base.opacity(0.86),
-                base.opacity(0.96)
-            ]
-        }
-        switch self.accentTone {
-        case .githubGreen:
-            return [
-                Color(nsColor: .quaternaryLabelColor),
-                Color(red: 0.74, green: 0.86, blue: 0.75).opacity(0.6),
-                Color(red: 0.56, green: 0.76, blue: 0.6).opacity(0.65),
-                Color(red: 0.3, green: 0.62, blue: 0.38).opacity(0.7),
-                Color(red: 0.18, green: 0.46, blue: 0.24).opacity(0.75)
-            ]
-        case .system:
-            let accent = Color.accentColor
-            return [
-                Color(nsColor: .quaternaryLabelColor),
-                accent.opacity(0.22),
-                accent.opacity(0.36),
-                accent.opacity(0.5),
-                accent.opacity(0.65)
-            ]
-        }
     }
 }
 

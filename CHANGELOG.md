@@ -49,6 +49,7 @@
 - Recent activity now includes action/number labels, repo targets, and avatar icons.
 - Activity row now shows the latest activity timestamp aligned to the right.
 - Contribution and repository heatmaps now align to the same week-based date range.
+- Heatmap rendering now uses cached CoreGraphics rasterization for faster menu redraws.
 
 ### Fixed
 - Settings now open via SwiftUI `openSettings` from the MenuBarExtra.

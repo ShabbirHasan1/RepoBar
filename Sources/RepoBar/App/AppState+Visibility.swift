@@ -2,7 +2,7 @@ import Foundation
 import RepoBarCore
 
 extension AppState {
-    private func localMatchRepoNamesForLocalProjects(repos: [Repository], includePinned: Bool) -> Set<String> {
+    func localMatchRepoNamesForLocalProjects(repos: [Repository], includePinned: Bool) -> Set<String> {
         var names = Set(repos.map(\.name))
         guard includePinned else { return names }
         let pinned = self.session.settings.repoList.pinnedRepositories
@@ -14,7 +14,7 @@ extension AppState {
         return names
     }
 
-    private func applyVisibilityFilters(to repos: [Repository]) -> [Repository] {
+    func applyVisibilityFilters(to repos: [Repository]) -> [Repository] {
         let options = AppState.VisibleSelectionOptions(
             pinned: self.session.settings.repoList.pinnedRepositories,
             hidden: Set(self.session.settings.repoList.hiddenRepositories),
@@ -25,7 +25,7 @@ extension AppState {
         return AppState.selectVisible(all: repos, options: options)
     }
 
-    private func selectMenuTargets(from repos: [Repository]) -> [Repository] {
+    func selectMenuTargets(from repos: [Repository]) -> [Repository] {
         RepositoryPipeline.apply(repos, query: self.menuQuery())
     }
 
@@ -51,7 +51,7 @@ extension AppState {
         )
     }
 
-    private func applyPinnedOrder(to repos: [Repository]) -> [Repository] {
+    func applyPinnedOrder(to repos: [Repository]) -> [Repository] {
         let pinned = self.session.settings.repoList.pinnedRepositories
         return repos.map { repo in
             if let idx = pinned.firstIndex(of: repo.fullName) {

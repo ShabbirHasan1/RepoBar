@@ -9,7 +9,7 @@ public actor GitHubClient {
     private let diag = DiagnosticsLogger.shared
     private let requestRunner = GitHubRequestRunner()
     private lazy var restAPI = GitHubRestAPI(
-        apiHost: { [weak self] in self?.apiHost ?? URL(string: "https://api.github.com")! },
+        apiHost: { [weak self] in await self?.apiHost ?? URL(string: "https://api.github.com")! },
         tokenProvider: { [weak self] in
             guard let self else { throw URLError(.userAuthenticationRequired) }
             return try await self.validAccessToken()
@@ -189,7 +189,6 @@ public actor GitHubClient {
         activityResult: Result<ActivitySnapshot, Error>
     ) -> Repository {
         var accumulator = RepoErrorAccumulator()
-        let owner = item.owner.login
         let openPulls = self.value(from: openPullsResult, into: &accumulator) ?? 0
         let issues = max(item.openIssuesCount - openPulls, 0)
         let snapshot = self.value(from: activityResult, into: &accumulator)
@@ -226,7 +225,7 @@ public actor GitHubClient {
         await self.requestRunner.clear()
         self.prefetchedRepos = []
         self.prefetchedReposExpiry = nil
-        self.repoDetailCoordinator.clearCache()
+        await self.repoDetailCoordinator.clearCache()
     }
 
     public func diagnostics() async -> DiagnosticsSummary {

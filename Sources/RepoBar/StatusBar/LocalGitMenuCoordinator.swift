@@ -449,3 +449,19 @@ private struct LocalWorktreeAction {
     let path: URL
     let fullName: String
 }
+
+#if DEBUG
+    extension LocalGitMenuCoordinator {
+        func makeLocalWorktreeMenuItemForTesting(
+            _ model: LocalRefMenuRowViewModel,
+            path: URL,
+            fullName: String
+        ) -> NSMenuItem {
+            self.makeLocalWorktreeMenuItem(model, path: path, fullName: fullName)
+        }
+
+        func isWorktreeMenuItemForTesting(_ item: NSMenuItem) -> Bool {
+            item.representedObject is LocalWorktreeAction
+        }
+    }
+#endif

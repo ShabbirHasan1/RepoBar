@@ -1,6 +1,6 @@
 import Foundation
 
-final class RepoDetailCoordinator {
+actor RepoDetailCoordinator {
     private var store: RepoDetailStore
     private let policy: RepoDetailCachePolicy
     private let restAPI: GitHubRestAPI
@@ -34,7 +34,8 @@ final class RepoDetailCoordinator {
         let now = Date()
         let resolvedOwner = details.owner.login
         let resolvedName = details.name
-        var cache = self.store.load(apiHost: self.restAPI.apiHost(), owner: resolvedOwner, name: resolvedName)
+        let apiHost = await self.restAPI.apiHost()
+        var cache = self.store.load(apiHost: apiHost, owner: resolvedOwner, name: resolvedName)
         let cacheState = self.policy.state(for: cache, now: now)
         let cachedOpenPulls = cache.openPulls ?? 0
         let cachedCiDetails = cache.ciDetails ?? CIStatusDetails(status: .unknown, runCount: nil)
@@ -53,23 +54,24 @@ final class RepoDetailCoordinator {
         var didUpdateCache = false
 
         // Run all expensive lookups in parallel; individual failures are folded into the accumulator.
+        let restAPI = self.restAPI
         async let openPullsResult: Result<Int, Error> = shouldFetchPulls
-            ? self.capture { try await self.restAPI.openPullRequestCount(owner: resolvedOwner, name: resolvedName) }
+            ? Self.capture { try await restAPI.openPullRequestCount(owner: resolvedOwner, name: resolvedName) }
             : .success(cachedOpenPulls)
         async let ciResult: Result<CIStatusDetails, Error> = shouldFetchCI
-            ? self.capture { try await self.restAPI.ciStatus(owner: resolvedOwner, name: resolvedName) }
+            ? Self.capture { try await restAPI.ciStatus(owner: resolvedOwner, name: resolvedName) }
             : .success(cachedCiDetails)
         async let activityResult: Result<ActivitySnapshot, Error> = shouldFetchActivity
-            ? self.capture { try await self.restAPI.recentActivity(owner: resolvedOwner, name: resolvedName, limit: 10) }
+            ? Self.capture { try await restAPI.recentActivity(owner: resolvedOwner, name: resolvedName, limit: 10) }
             : .success(ActivitySnapshot(events: cachedActivityEvents, latest: cachedActivity))
         async let trafficResult: Result<TrafficStats?, Error> = shouldFetchTraffic
-            ? self.capture { try await self.restAPI.trafficStats(owner: resolvedOwner, name: resolvedName) }
+            ? Self.capture { try await restAPI.trafficStats(owner: resolvedOwner, name: resolvedName) }
             : .success(cachedTraffic)
         async let heatmapResult: Result<[HeatmapCell], Error> = shouldFetchHeatmap
-            ? self.capture { try await self.restAPI.commitHeatmap(owner: resolvedOwner, name: resolvedName) }
+            ? Self.capture { try await restAPI.commitHeatmap(owner: resolvedOwner, name: resolvedName) }
             : .success(cachedHeatmap)
         async let releaseResult: Result<Release?, Error> = shouldFetchRelease
-            ? self.capture { try await self.restAPI.latestReleaseAny(owner: resolvedOwner, name: resolvedName) }
+            ? Self.capture { try await restAPI.latestReleaseAny(owner: resolvedOwner, name: resolvedName) }
             : .success(cachedRelease)
 
         let openPulls: Int
@@ -165,7 +167,7 @@ final class RepoDetailCoordinator {
 
         let finalCacheState = self.policy.state(for: cache, now: now)
         if didUpdateCache {
-            self.store.save(cache, apiHost: self.restAPI.apiHost(), owner: resolvedOwner, name: resolvedName)
+            self.store.save(cache, apiHost: apiHost, owner: resolvedOwner, name: resolvedName)
         }
 
         return Repository.from(
@@ -189,7 +191,7 @@ final class RepoDetailCoordinator {
         self.store.clear()
     }
 
-    private func capture<T>(_ work: @escaping () async throws -> T) async -> Result<T, Error> {
+    private static func capture<T>(_ work: @escaping @Sendable () async throws -> T) async -> Result<T, Error> {
         do { return try await .success(work()) } catch { return .failure(error) }
     }
 }

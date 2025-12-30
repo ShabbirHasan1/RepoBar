@@ -313,5 +313,21 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         func setMainMenuForTesting(_ menu: NSMenu) {
             self.mainMenu = menu
         }
+
+        func makeLocalWorktreeMenuItemForTesting(
+            _ model: LocalRefMenuRowViewModel,
+            path: URL,
+            fullName: String
+        ) -> NSMenuItem {
+            self.localGitMenuCoordinator.makeLocalWorktreeMenuItemForTesting(model, path: path, fullName: fullName)
+        }
+
+        func isWorktreeMenuItemForTesting(_ item: NSMenuItem) -> Bool {
+            self.localGitMenuCoordinator.isWorktreeMenuItemForTesting(item)
+        }
+
+        func isRecentListMenu(_ menu: NSMenu) -> Bool {
+            self.recentListCoordinator.containsMenuForTesting(menu)
+        }
     #endif
 }

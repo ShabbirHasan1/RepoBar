@@ -2,11 +2,11 @@ import Foundation
 import RepoBarCore
 
 extension AppState {
-    private func fetchActivityRepos() async throws -> [Repository] {
+    func fetchActivityRepos() async throws -> [Repository] {
         try await self.github.activityRepositories(limit: nil)
     }
 
-    private func fetchGlobalActivityEvents(
+    func fetchGlobalActivityEvents(
         username: String,
         scope: GlobalActivityScope,
         repos: [Repository]

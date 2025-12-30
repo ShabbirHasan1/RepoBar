@@ -5,15 +5,16 @@ struct ActivitySnapshot: Sendable {
     let latest: ActivityEvent?
 }
 
-struct GitHubRestAPI {
-    let apiHost: () -> URL
-    let tokenProvider: () async throws -> String
+struct GitHubRestAPI: Sendable {
+    let apiHost: @Sendable () async -> URL
+    let tokenProvider: @Sendable () async throws -> String
     let requestRunner: GitHubRequestRunner
     let diag: DiagnosticsLogger
 
     func userReposSorted(limit: Int) async throws -> [RepoItem] {
         let token = try await tokenProvider()
-        var components = URLComponents(url: apiHost().appending(path: "/user/repos"), resolvingAgainstBaseURL: false)!
+        let baseURL = await apiHost()
+        var components = URLComponents(url: baseURL.appending(path: "/user/repos"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "per_page", value: "\(limit)"),
             URLQueryItem(name: "sort", value: "pushed"),
@@ -52,15 +53,17 @@ struct GitHubRestAPI {
 
     func fetchCurrentUser() async throws -> CurrentUser {
         let token = try await tokenProvider()
-        let url = self.apiHost().appending(path: "/user")
+        let baseURL = await self.apiHost()
+        let url = baseURL.appending(path: "/user")
         let (data, _) = try await authorizedGet(url: url, token: token)
         return try GitHubDecoding.decode(CurrentUser.self, from: data)
     }
 
     func searchRepositories(matching query: String) async throws -> [RepoItem] {
         let token = try await tokenProvider()
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/search/repositories"),
+            url: baseURL.appending(path: "/search/repositories"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [URLQueryItem(name: "q", value: query), URLQueryItem(name: "per_page", value: "5")]
@@ -71,11 +74,12 @@ struct GitHubRestAPI {
 
     func userEvents(username: String, scope: GlobalActivityScope) async throws -> [RepoEvent] {
         let token = try await tokenProvider()
+        let baseURL = await apiHost()
         let path = scope == .allActivity
             ? "/users/\(username)/received_events"
             : "/users/\(username)/events"
         var components = URLComponents(
-            url: apiHost().appending(path: path),
+            url: baseURL.appending(path: path),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [URLQueryItem(name: "per_page", value: "30")]
@@ -85,15 +89,17 @@ struct GitHubRestAPI {
 
     func repoDetails(owner: String, name: String) async throws -> RepoItem {
         let token = try await tokenProvider()
-        let url = self.apiHost().appending(path: "/repos/\(owner)/\(name)")
+        let baseURL = await self.apiHost()
+        let url = baseURL.appending(path: "/repos/\(owner)/\(name)")
         let (data, _) = try await authorizedGet(url: url, token: token)
         return try GitHubDecoding.decode(RepoItem.self, from: data)
     }
 
     func ciStatus(owner: String, name: String) async throws -> CIStatusDetails {
         let token = try await tokenProvider()
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/repos/\(owner)/\(name)/actions/runs"),
+            url: baseURL.appending(path: "/repos/\(owner)/\(name)/actions/runs"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [
@@ -109,8 +115,9 @@ struct GitHubRestAPI {
 
     func recentActivity(owner: String, name: String, limit: Int) async throws -> ActivitySnapshot {
         let token = try await tokenProvider()
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/repos/\(owner)/\(name)/events"),
+            url: baseURL.appending(path: "/repos/\(owner)/\(name)/events"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [URLQueryItem(name: "per_page", value: "30")]
@@ -130,8 +137,9 @@ struct GitHubRestAPI {
     func trafficStats(owner: String, name: String) async throws -> TrafficStats? {
         do {
             let token = try await tokenProvider()
-            let viewsURL = self.apiHost().appending(path: "/repos/\(owner)/\(name)/traffic/views")
-            let clonesURL = self.apiHost().appending(path: "/repos/\(owner)/\(name)/traffic/clones")
+            let baseURL = await apiHost()
+            let viewsURL = baseURL.appending(path: "/repos/\(owner)/\(name)/traffic/views")
+            let clonesURL = baseURL.appending(path: "/repos/\(owner)/\(name)/traffic/clones")
             async let viewsPair = self.authorizedGet(url: viewsURL, token: token)
             async let clonesPair = self.authorizedGet(url: clonesURL, token: token)
             let views = try await GitHubDecoding.decode(TrafficResponse.self, from: viewsPair.0)
@@ -149,8 +157,9 @@ struct GitHubRestAPI {
     func commitHeatmap(owner: String, name: String) async throws -> [HeatmapCell] {
         do {
             let token = try await tokenProvider()
+            let baseURL = await apiHost()
             let (data, _) = try await authorizedGet(
-                url: apiHost().appending(path: "/repos/\(owner)/\(name)/stats/commit_activity"),
+                url: baseURL.appending(path: "/repos/\(owner)/\(name)/stats/commit_activity"),
                 token: token
             )
             let weeks = try GitHubDecoding.decode([CommitActivityWeek].self, from: data)
@@ -171,8 +180,9 @@ struct GitHubRestAPI {
 
     func openPullRequestCount(owner: String, name: String) async throws -> Int {
         let token = try await tokenProvider()
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/repos/\(owner)/\(name)/pulls"),
+            url: baseURL.appending(path: "/repos/\(owner)/\(name)/pulls"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [
@@ -192,8 +202,9 @@ struct GitHubRestAPI {
 
     func commitTotalCount(owner: String, name: String) async throws -> Int? {
         let token = try await tokenProvider()
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/repos/\(owner)/\(name)/commits"),
+            url: baseURL.appending(path: "/repos/\(owner)/\(name)/commits"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [URLQueryItem(name: "per_page", value: "1")]
@@ -258,8 +269,9 @@ struct GitHubRestAPI {
     func recentCommits(owner: String, name: String, limit: Int = 20) async throws -> RepoCommitList {
         let token = try await tokenProvider()
         let limit = max(1, min(limit, 100))
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/repos/\(owner)/\(name)/commits"),
+            url: baseURL.appending(path: "/repos/\(owner)/\(name)/commits"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [URLQueryItem(name: "per_page", value: "\(limit)")]
@@ -317,8 +329,9 @@ struct GitHubRestAPI {
     /// Returns `nil` if the repository has no releases.
     func latestReleaseAny(owner: String, name: String) async throws -> Release? {
         let token = try await tokenProvider()
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/repos/\(owner)/\(name)/releases"),
+            url: baseURL.appending(path: "/repos/\(owner)/\(name)/releases"),
             resolvingAgainstBaseURL: false
         )!
         components.queryItems = [URLQueryItem(name: "per_page", value: "20")]
@@ -338,8 +351,9 @@ struct GitHubRestAPI {
     ) async throws -> [T] {
         let token = try await tokenProvider()
         let limit = max(1, min(limit, 100))
+        let baseURL = await apiHost()
         var components = URLComponents(
-            url: apiHost().appending(path: "/repos/\(owner)/\(name)/\(path)"),
+            url: baseURL.appending(path: "/repos/\(owner)/\(name)/\(path)"),
             resolvingAgainstBaseURL: false
         )!
         var items = queryItems.filter { $0.name != "per_page" }
@@ -362,7 +376,8 @@ struct GitHubRestAPI {
         while true {
             // Each page is a separate request; stop early if GitHub returns a short page.
             let token = try await tokenProvider()
-            var components = URLComponents(url: apiHost().appending(path: path), resolvingAgainstBaseURL: false)!
+            let baseURL = await apiHost()
+            var components = URLComponents(url: baseURL.appending(path: path), resolvingAgainstBaseURL: false)!
             var items = queryItems.filter { $0.name != "per_page" && $0.name != "page" }
             items.append(URLQueryItem(name: "per_page", value: "\(pageSize)"))
             items.append(URLQueryItem(name: "page", value: "\(page)"))

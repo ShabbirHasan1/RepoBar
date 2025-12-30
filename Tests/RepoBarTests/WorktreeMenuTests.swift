@@ -8,22 +8,23 @@ struct WorktreeMenuTests {
     func worktreeMenuItem_wiresActionAndPayload() {
         let manager = StatusBarMenuManager(appState: AppState())
         let path = URL(fileURLWithPath: "/tmp/worktree", isDirectory: true)
-        let item = manager.makeLocalWorktreeMenuItem(.init(
-            displayPath: "/tmp/worktree",
-            branch: "main",
+        let model = LocalRefMenuRowViewModel(
+            kind: .worktree,
+            title: "/tmp/worktree",
+            detail: "main",
             isCurrent: true,
+            isDetached: false,
             upstream: nil,
             aheadCount: nil,
             behindCount: nil,
             lastCommitDate: nil,
             lastCommitAuthor: nil,
-            dirtySummary: nil,
-            path: path,
-            fullName: "owner/repo"
-        ))
+            dirtySummary: nil
+        )
+        let item = manager.makeLocalWorktreeMenuItemForTesting(model, path: path, fullName: "owner/repo")
 
         #expect(item.target != nil)
         #expect(item.action != nil)
-        #expect(item.representedObject is StatusBarMenuManager.LocalWorktreeAction)
+        #expect(manager.isWorktreeMenuItemForTesting(item))
     }
 }

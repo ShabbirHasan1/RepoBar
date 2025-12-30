@@ -110,6 +110,12 @@ final class RecentListMenuCoordinator {
         }
     }
 
+    #if DEBUG
+        func containsMenuForTesting(_ menu: NSMenu) -> Bool {
+            self.recentListMenus[ObjectIdentifier(menu)] != nil
+        }
+    #endif
+
     private func refreshRecentListMenu(menu: NSMenu, context: RepoRecentMenuContext) async {
         guard case .loggedIn = self.appState.session.account else {
             let header = RecentMenuHeader(title: "Sign in to view", action: nil, fullName: context.fullName, systemImage: nil)

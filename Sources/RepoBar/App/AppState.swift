@@ -11,26 +11,26 @@ final class AppState {
     let auth = OAuthCoordinator()
     let github = GitHubClient()
     let refreshScheduler = RefreshScheduler()
-    private let settingsStore = SettingsStore()
-    private let localRepoManager = LocalRepoManager()
-    private let menuRefreshInterval: TimeInterval = 30
-    private var refreshTask: Task<Void, Never>?
-    private var localProjectsTask: Task<Void, Never>?
+    let settingsStore = SettingsStore()
+    let localRepoManager = LocalRepoManager()
+    let menuRefreshInterval: TimeInterval = 30
+    var refreshTask: Task<Void, Never>?
+    var localProjectsTask: Task<Void, Never>?
     private var tokenRefreshTask: Task<Void, Never>?
-    private var menuRefreshTask: Task<Void, Never>?
-    private var refreshTaskToken = UUID()
-    private let hydrateConcurrencyLimit = 4
-    private var prefetchTask: Task<Void, Never>?
+    var menuRefreshTask: Task<Void, Never>?
+    var refreshTaskToken = UUID()
+    let hydrateConcurrencyLimit = 4
+    var prefetchTask: Task<Void, Never>?
     private let tokenRefreshInterval: TimeInterval = 300
-    private let menuRefreshDebounceInterval: TimeInterval = 1
-    private var lastMenuRefreshRequest: Date?
+    let menuRefreshDebounceInterval: TimeInterval = 1
+    var lastMenuRefreshRequest: Date?
 
     // Default GitHub App values for convenience login from the main window.
-    private let defaultClientID = RepoBarAuthDefaults.clientID
-    private let defaultClientSecret = RepoBarAuthDefaults.clientSecret
-    private let defaultLoopbackPort = RepoBarAuthDefaults.loopbackPort
-    private let defaultGitHubHost = RepoBarAuthDefaults.githubHost
-    private let defaultAPIHost = RepoBarAuthDefaults.apiHost
+    let defaultClientID = RepoBarAuthDefaults.clientID
+    let defaultClientSecret = RepoBarAuthDefaults.clientSecret
+    let defaultLoopbackPort = RepoBarAuthDefaults.loopbackPort
+    let defaultGitHubHost = RepoBarAuthDefaults.githubHost
+    let defaultAPIHost = RepoBarAuthDefaults.apiHost
 
     init() {
         self.session.settings = self.settingsStore.load()

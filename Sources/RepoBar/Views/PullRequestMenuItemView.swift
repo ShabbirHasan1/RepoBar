@@ -3,7 +3,7 @@ import RepoBarCore
 import SwiftUI
 
 struct PullRequestMenuItemView: View {
-    let model: PullRequestMenuRowViewModel
+    let summary: RepoPullRequestSummary
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -12,46 +12,46 @@ struct PullRequestMenuItemView: View {
             self.avatar
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.model.title)
+                Text(self.summary.title)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(2)
 
                 HStack(spacing: 6) {
-                    Text("#\(self.model.number)")
+                    Text("#\(self.summary.number)")
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
 
-                    if let author = self.model.authorLogin, author.isEmpty == false {
+                    if let author = self.summary.authorLogin, author.isEmpty == false {
                         Text(author)
                             .font(.caption)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             .lineLimit(1)
                     }
 
-                    Text(RelativeFormatter.string(from: self.model.updatedAt, relativeTo: Date()))
+                    Text(RelativeFormatter.string(from: self.summary.updatedAt, relativeTo: Date()))
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
 
                     Spacer(minLength: 2)
 
-                    if self.model.isDraft {
+                    if self.summary.isDraft {
                         DraftPillView(isHighlighted: self.isHighlighted)
                     }
 
-                    if self.model.reviewCommentCount > 0 {
-                        MenuStatBadge(label: nil, value: self.model.reviewCommentCount, systemImage: "checkmark.bubble")
+                    if self.summary.reviewCommentCount > 0 {
+                        MenuStatBadge(label: nil, value: self.summary.reviewCommentCount, systemImage: "checkmark.bubble")
                     }
 
-                    if self.model.commentCount > 0 {
-                        MenuStatBadge(label: nil, value: self.model.commentCount, systemImage: "text.bubble")
+                    if self.summary.commentCount > 0 {
+                        MenuStatBadge(label: nil, value: self.summary.commentCount, systemImage: "text.bubble")
                     }
                 }
 
-                if let head = self.model.headRefName, let base = self.model.baseRefName, head.isEmpty == false, base.isEmpty == false {
+                if let head = self.summary.headRefName, let base = self.summary.baseRefName, head.isEmpty == false, base.isEmpty == false {
                     Text("\(head) → \(base)")
                         .font(.caption2)
                         .monospaced()
@@ -59,8 +59,8 @@ struct PullRequestMenuItemView: View {
                         .lineLimit(1)
                 }
 
-                if self.model.labels.isEmpty == false {
-                    MenuLabelChipsView(labels: self.model.labels)
+                if self.summary.labels.isEmpty == false {
+                    MenuLabelChipsView(labels: self.summary.labels)
                 }
             }
         }
@@ -68,7 +68,7 @@ struct PullRequestMenuItemView: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if let url = self.model.authorAvatarURL {
+        if let url = self.summary.authorAvatarURL {
             KFImage(url)
                 .placeholder { self.avatarPlaceholder }
                 .resizable()

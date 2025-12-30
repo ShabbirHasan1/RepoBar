@@ -3,7 +3,7 @@ import RepoBarCore
 import SwiftUI
 
 struct CommitMenuItemView: View {
-    let model: CommitMenuRowViewModel
+    let summary: RepoCommitSummary
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -12,7 +12,7 @@ struct CommitMenuItemView: View {
             self.avatar
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.model.message)
+                Text(self.summary.message)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(2)
@@ -31,14 +31,14 @@ struct CommitMenuItemView: View {
                             .lineLimit(1)
                     }
 
-                    if let repo = self.model.repoFullName, repo.isEmpty == false {
+                    if let repo = self.summary.repoFullName, repo.isEmpty == false {
                         Text(repo)
                             .font(.caption2)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             .lineLimit(1)
                     }
 
-                    Text(RelativeFormatter.string(from: self.model.authoredAt, relativeTo: Date()))
+                    Text(RelativeFormatter.string(from: self.summary.authoredAt, relativeTo: Date()))
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
@@ -48,16 +48,16 @@ struct CommitMenuItemView: View {
     }
 
     private var shortSHA: String {
-        String(self.model.sha.prefix(7))
+        String(self.summary.sha.prefix(7))
     }
 
     private var authorLabel: String? {
-        self.model.authorLabel
+        self.summary.authorLogin ?? self.summary.authorName
     }
 
     @ViewBuilder
     private var avatar: some View {
-        if let url = self.model.authorAvatarURL {
+        if let url = self.summary.authorAvatarURL {
             KFImage(url)
                 .placeholder { self.avatarPlaceholder }
                 .resizable()

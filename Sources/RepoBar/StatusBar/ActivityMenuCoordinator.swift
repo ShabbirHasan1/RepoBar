@@ -72,7 +72,7 @@ final class ActivityMenuCoordinator {
     }
 
     func commitMenuItem(for commit: RepoCommitSummary) -> NSMenuItem {
-        let view = CommitMenuItemView(model: CommitMenuRowViewModel(summary: commit)) { [weak self] in
+        let view = CommitMenuItemView(summary: commit) { [weak self] in
             self?.actionHandler.open(url: commit.url)
         }
         return self.menuBuilder.viewItem(for: view, enabled: true, highlightable: true)

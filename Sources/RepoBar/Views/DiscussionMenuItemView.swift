@@ -3,7 +3,7 @@ import RepoBarCore
 import SwiftUI
 
 struct DiscussionMenuItemView: View {
-    let model: DiscussionMenuRowViewModel
+    let summary: RepoDiscussionSummary
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -12,35 +12,35 @@ struct DiscussionMenuItemView: View {
             self.avatar
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.model.title)
+                Text(self.summary.title)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(2)
 
                 HStack(spacing: 6) {
-                    if let category = self.model.categoryName, category.isEmpty == false {
+                    if let category = self.summary.categoryName, category.isEmpty == false {
                         Text(category)
                             .font(.caption)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             .lineLimit(1)
                     }
 
-                    if let author = self.model.authorLogin, author.isEmpty == false {
+                    if let author = self.summary.authorLogin, author.isEmpty == false {
                         Text(author)
                             .font(.caption)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             .lineLimit(1)
                     }
 
-                    Text(RelativeFormatter.string(from: self.model.updatedAt, relativeTo: Date()))
+                    Text(RelativeFormatter.string(from: self.summary.updatedAt, relativeTo: Date()))
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
 
                     Spacer(minLength: 2)
 
-                    if self.model.commentCount > 0 {
-                        MenuStatBadge(label: nil, value: self.model.commentCount, systemImage: "text.bubble")
+                    if self.summary.commentCount > 0 {
+                        MenuStatBadge(label: nil, value: self.summary.commentCount, systemImage: "text.bubble")
                     }
                 }
             }
@@ -49,7 +49,7 @@ struct DiscussionMenuItemView: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if let url = self.model.authorAvatarURL {
+        if let url = self.summary.authorAvatarURL {
             KFImage(url)
                 .placeholder { self.avatarPlaceholder }
                 .resizable()

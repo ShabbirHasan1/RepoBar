@@ -236,30 +236,28 @@ extension RecentListMenuCoordinator {
         self.menuItemFactory.makeItem(for: view, enabled: enabled)
     }
 
-    func addIssueMenuItem(_ model: IssueMenuRowViewModel, to menu: NSMenu) {
-        let view = IssueMenuItemView(model: model) { [weak self] in
-            guard let url = model.metadata.url else { return }
-            self?.actionHandler.open(url: url)
+    func addIssueMenuItem(_ summary: RepoIssueSummary, to menu: NSMenu) {
+        let view = IssueMenuItemView(summary: summary) { [weak self] in
+            self?.actionHandler.open(url: summary.url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = self.recentItemTooltip(for: model.metadata)
+        item.toolTip = self.recentItemTooltip(title: summary.title, author: summary.authorLogin, updatedAt: summary.updatedAt)
         menu.addItem(item)
     }
 
-    func addPullRequestMenuItem(_ model: PullRequestMenuRowViewModel, to menu: NSMenu) {
-        let view = PullRequestMenuItemView(model: model) { [weak self] in
-            guard let url = model.metadata.url else { return }
-            self?.actionHandler.open(url: url)
+    func addPullRequestMenuItem(_ summary: RepoPullRequestSummary, to menu: NSMenu) {
+        let view = PullRequestMenuItemView(summary: summary) { [weak self] in
+            self?.actionHandler.open(url: summary.url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = self.recentItemTooltip(for: model.metadata)
+        item.toolTip = self.recentItemTooltip(title: summary.title, author: summary.authorLogin, updatedAt: summary.updatedAt)
         menu.addItem(item)
     }
 
-    func addReleaseMenuItem(_ model: ReleaseMenuRowViewModel, to menu: NSMenu) {
-        let hasAssets = model.assets.isEmpty == false
-        let view = ReleaseMenuItemView(model: model) { [weak self] in
-            self?.actionHandler.open(url: model.url)
+    func addReleaseMenuItem(_ summary: RepoReleaseSummary, to menu: NSMenu) {
+        let hasAssets = summary.assets.isEmpty == false
+        let view = ReleaseMenuItemView(summary: summary) { [weak self] in
+            self?.actionHandler.open(url: summary.url)
         }
         let item = self.menuItemFactory.makeItem(
             for: view,
@@ -267,39 +265,43 @@ extension RecentListMenuCoordinator {
             highlightable: true,
             showsSubmenuIndicator: hasAssets
         )
-        item.toolTip = self.recentItemTooltip(for: model.metadata)
+        item.toolTip = self.recentItemTooltip(title: summary.name, author: summary.authorLogin, updatedAt: summary.publishedAt)
         if hasAssets {
-            item.submenu = self.releaseAssetsMenu(for: model)
+            item.submenu = self.releaseAssetsMenu(for: summary)
             item.target = self.actionHandler
             item.action = #selector(StatusBarMenuManager.menuItemNoOp(_:))
         }
         menu.addItem(item)
     }
 
-    func addWorkflowRunMenuItem(_ model: WorkflowRunMenuRowViewModel, to menu: NSMenu) {
-        let view = WorkflowRunMenuItemView(model: model) { [weak self] in
-            self?.actionHandler.open(url: model.url)
+    func addWorkflowRunMenuItem(_ summary: RepoWorkflowRunSummary, to menu: NSMenu) {
+        let view = WorkflowRunMenuItemView(summary: summary) { [weak self] in
+            self?.actionHandler.open(url: summary.url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = self.recentItemTooltip(for: model.metadata)
+        item.toolTip = self.recentItemTooltip(title: summary.name, author: summary.actorLogin, updatedAt: summary.updatedAt)
         menu.addItem(item)
     }
 
-    func addDiscussionMenuItem(_ model: DiscussionMenuRowViewModel, to menu: NSMenu) {
-        let view = DiscussionMenuItemView(model: model) { [weak self] in
-            self?.actionHandler.open(url: model.url)
+    func addDiscussionMenuItem(_ summary: RepoDiscussionSummary, to menu: NSMenu) {
+        let view = DiscussionMenuItemView(summary: summary) { [weak self] in
+            self?.actionHandler.open(url: summary.url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = self.recentItemTooltip(for: model.metadata)
+        item.toolTip = self.recentItemTooltip(title: summary.title, author: summary.authorLogin, updatedAt: summary.updatedAt)
         menu.addItem(item)
     }
 
-    func addCommitMenuItem(_ model: CommitMenuRowViewModel, to menu: NSMenu) {
-        let view = CommitMenuItemView(model: model) { [weak self] in
-            self?.actionHandler.open(url: model.url)
+    func addCommitMenuItem(_ summary: RepoCommitSummary, to menu: NSMenu) {
+        let view = CommitMenuItemView(summary: summary) { [weak self] in
+            self?.actionHandler.open(url: summary.url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = self.recentItemTooltip(for: model.metadata)
+        item.toolTip = self.recentItemTooltip(
+            title: summary.message,
+            author: summary.authorLogin ?? summary.authorName,
+            updatedAt: summary.authoredAt
+        )
         menu.addItem(item)
     }
 
@@ -307,7 +309,7 @@ extension RecentListMenuCoordinator {
         let submenu = NSMenu()
         submenu.autoenablesItems = false
         for commit in items {
-            self.addCommitMenuItem(CommitMenuRowViewModel(summary: commit), to: submenu)
+            self.addCommitMenuItem(commit, to: submenu)
         }
         let item = NSMenuItem(title: "More Commits…", action: nil, keyEquivalent: "")
         item.submenu = submenu
@@ -315,37 +317,37 @@ extension RecentListMenuCoordinator {
         return item
     }
 
-    func addTagMenuItem(_ model: TagMenuRowViewModel, repoFullName: String, to menu: NSMenu) {
-        let view = TagMenuItemView(model: model) { [weak self] in
-            guard let self, let url = self.webURLBuilder.tagURL(fullName: repoFullName, tag: model.name) else { return }
+    func addTagMenuItem(_ summary: RepoTagSummary, repoFullName: String, to menu: NSMenu) {
+        let view = TagMenuItemView(summary: summary) { [weak self] in
+            guard let self, let url = self.webURLBuilder.tagURL(fullName: repoFullName, tag: summary.name) else { return }
             self.actionHandler.open(url: url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = "\(model.name)\n\(model.commitSHA)"
+        item.toolTip = "\(summary.name)\n\(summary.commitSHA)"
         menu.addItem(item)
     }
 
-    func addBranchMenuItem(_ model: BranchMenuRowViewModel, repoFullName: String, to menu: NSMenu) {
-        let view = BranchMenuItemView(model: model) { [weak self] in
-            guard let self, let url = self.webURLBuilder.branchURL(fullName: repoFullName, branch: model.name) else { return }
+    func addBranchMenuItem(_ summary: RepoBranchSummary, repoFullName: String, to menu: NSMenu) {
+        let view = BranchMenuItemView(summary: summary) { [weak self] in
+            guard let self, let url = self.webURLBuilder.branchURL(fullName: repoFullName, branch: summary.name) else { return }
             self.actionHandler.open(url: url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = "\(model.name)\n\(model.commitSHA)"
+        item.toolTip = "\(summary.name)\n\(summary.commitSHA)"
         menu.addItem(item)
     }
 
-    func addContributorMenuItem(_ model: ContributorMenuRowViewModel, to menu: NSMenu) {
-        let view = ContributorMenuItemView(model: model) { [weak self] in
-            guard let url = model.url else { return }
+    func addContributorMenuItem(_ summary: RepoContributorSummary, to menu: NSMenu) {
+        let view = ContributorMenuItemView(summary: summary) { [weak self] in
+            guard let url = summary.url else { return }
             self?.actionHandler.open(url: url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = "\(model.login)\n\(model.contributions) contributions"
+        item.toolTip = "\(summary.login)\n\(summary.contributions) contributions"
         menu.addItem(item)
     }
 
-    func releaseAssetsMenu(for release: ReleaseMenuRowViewModel) -> NSMenu {
+    func releaseAssetsMenu(for release: RepoReleaseSummary) -> NSMenu {
         let menu = NSMenu()
         menu.autoenablesItems = false
         menu.delegate = self.actionHandler
@@ -364,7 +366,7 @@ extension RecentListMenuCoordinator {
                 emptyTitle: "No assets",
                 render: { menu in
                     for asset in release.assets {
-                        self.addReleaseAssetMenuItem(ReleaseAssetMenuRowViewModel(summary: asset), to: menu)
+                        self.addReleaseAssetMenuItem(asset, to: menu)
                     }
                 }
             )
@@ -373,24 +375,24 @@ extension RecentListMenuCoordinator {
         return menu
     }
 
-    func addReleaseAssetMenuItem(_ model: ReleaseAssetMenuRowViewModel, to menu: NSMenu) {
-        let view = ReleaseAssetMenuItemView(model: model) { [weak self] in
-            self?.actionHandler.open(url: model.url)
+    func addReleaseAssetMenuItem(_ summary: RepoReleaseAssetSummary, to menu: NSMenu) {
+        let view = ReleaseAssetMenuItemView(summary: summary) { [weak self] in
+            self?.actionHandler.open(url: summary.url)
         }
         let item = self.menuItemFactory.makeItem(for: view, enabled: true, highlightable: true)
-        item.toolTip = model.name
+        item.toolTip = summary.name
         menu.addItem(item)
     }
 
-    func recentItemTooltip(for metadata: RecentRowMetadata) -> String {
+    func recentItemTooltip(title: String, author: String?, updatedAt: Date?) -> String {
         var parts: [String] = []
-        if let author = metadata.author, !author.isEmpty {
+        if let author, !author.isEmpty {
             parts.append("@\(author)")
         }
-        if let updatedAt = metadata.updatedAt {
+        if let updatedAt {
             parts.append("Updated \(RelativeFormatter.string(from: updatedAt, relativeTo: Date()))")
         }
-        parts.append(metadata.title)
+        parts.append(title)
         return parts.joined(separator: "\n")
     }
 

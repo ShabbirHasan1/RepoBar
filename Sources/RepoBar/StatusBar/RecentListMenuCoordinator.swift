@@ -202,7 +202,7 @@ final class RecentListMenuCoordinator {
                 return
             }
             for issue in filtered.prefix(self.menuService.listLimit) {
-                self.addIssueMenuItem(IssueMenuRowViewModel(summary: issue), to: menu)
+                self.addIssueMenuItem(issue, to: menu)
             }
         case let .pullRequests(pullRequestItems):
             let filtered = self.filteredPullRequests(pullRequestItems)
@@ -211,38 +211,38 @@ final class RecentListMenuCoordinator {
                 return
             }
             for pullRequest in filtered.prefix(self.menuService.listLimit) {
-                self.addPullRequestMenuItem(PullRequestMenuRowViewModel(summary: pullRequest), to: menu)
+                self.addPullRequestMenuItem(pullRequest, to: menu)
             }
         case let .releases(releases):
             for release in releases.prefix(self.menuService.listLimit) {
-                self.addReleaseMenuItem(ReleaseMenuRowViewModel(summary: release), to: menu)
+                self.addReleaseMenuItem(release, to: menu)
             }
         case let .workflowRuns(runs):
             for run in runs.prefix(self.menuService.listLimit) {
-                self.addWorkflowRunMenuItem(WorkflowRunMenuRowViewModel(summary: run), to: menu)
+                self.addWorkflowRunMenuItem(run, to: menu)
             }
         case let .discussions(discussions):
             for discussion in discussions.prefix(self.menuService.listLimit) {
-                self.addDiscussionMenuItem(DiscussionMenuRowViewModel(summary: discussion), to: menu)
+                self.addDiscussionMenuItem(discussion, to: menu)
             }
         case let .commits(commits):
             for commit in commits.prefix(self.menuService.previewLimit) {
-                self.addCommitMenuItem(CommitMenuRowViewModel(summary: commit), to: menu)
+                self.addCommitMenuItem(commit, to: menu)
             }
             if commits.count > self.menuService.previewLimit {
                 menu.addItem(self.moreCommitsMenuItem(items: commits))
             }
         case let .tags(tags):
             for tag in tags.prefix(self.menuService.listLimit) {
-                self.addTagMenuItem(TagMenuRowViewModel(summary: tag), repoFullName: repoFullName, to: menu)
+                self.addTagMenuItem(tag, repoFullName: repoFullName, to: menu)
             }
         case let .branches(branches):
             for branch in branches.prefix(self.menuService.listLimit) {
-                self.addBranchMenuItem(BranchMenuRowViewModel(summary: branch), repoFullName: repoFullName, to: menu)
+                self.addBranchMenuItem(branch, repoFullName: repoFullName, to: menu)
             }
         case let .contributors(contributors):
             for contributor in contributors.prefix(self.menuService.listLimit) {
-                self.addContributorMenuItem(ContributorMenuRowViewModel(summary: contributor), to: menu)
+                self.addContributorMenuItem(contributor, to: menu)
             }
         }
     }

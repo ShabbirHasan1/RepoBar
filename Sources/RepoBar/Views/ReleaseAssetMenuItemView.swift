@@ -1,7 +1,8 @@
+import RepoBarCore
 import SwiftUI
 
 struct ReleaseAssetMenuItemView: View {
-    let model: ReleaseAssetMenuRowViewModel
+    let summary: RepoReleaseAssetSummary
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -12,7 +13,7 @@ struct ReleaseAssetMenuItemView: View {
                 .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.model.name)
+                Text(self.summary.name)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(1)
@@ -25,7 +26,7 @@ struct ReleaseAssetMenuItemView: View {
                             .lineLimit(1)
                     }
 
-                    Text("\(self.model.downloadCount) downloads")
+                    Text("\(self.summary.downloadCount) downloads")
                         .font(.caption)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
@@ -35,7 +36,7 @@ struct ReleaseAssetMenuItemView: View {
     }
 
     private var sizeText: String? {
-        guard let bytes = self.model.sizeBytes else { return nil }
+        guard let bytes = self.summary.sizeBytes else { return nil }
         let formatter = ByteCountFormatter()
         formatter.countStyle = .file
         return formatter.string(fromByteCount: Int64(bytes))

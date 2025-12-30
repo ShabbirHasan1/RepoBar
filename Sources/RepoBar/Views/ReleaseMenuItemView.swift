@@ -3,7 +3,7 @@ import RepoBarCore
 import SwiftUI
 
 struct ReleaseMenuItemView: View {
-    let model: ReleaseMenuRowViewModel
+    let summary: RepoReleaseSummary
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -12,42 +12,42 @@ struct ReleaseMenuItemView: View {
             self.avatar
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.model.name)
+                Text(self.summary.name)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(2)
 
                 HStack(spacing: 6) {
-                    Text(self.model.tag)
+                    Text(self.summary.tag)
                         .font(.caption)
                         .monospaced()
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
 
-                    if let author = self.model.authorLogin, author.isEmpty == false {
+                    if let author = self.summary.authorLogin, author.isEmpty == false {
                         Text(author)
                             .font(.caption)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             .lineLimit(1)
                     }
 
-                    Text(RelativeFormatter.string(from: self.model.publishedAt, relativeTo: Date()))
+                    Text(RelativeFormatter.string(from: self.summary.publishedAt, relativeTo: Date()))
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
 
                     Spacer(minLength: 2)
 
-                    if self.model.isPrerelease {
+                    if self.summary.isPrerelease {
                         PrereleasePillView(isHighlighted: self.isHighlighted)
                     }
 
-                    if self.model.assetCount > 0 {
-                        MenuStatBadge(label: nil, value: self.model.assetCount, systemImage: "shippingbox")
+                    if self.summary.assetCount > 0 {
+                        MenuStatBadge(label: nil, value: self.summary.assetCount, systemImage: "shippingbox")
                     }
 
-                    if self.model.downloadCount > 0 {
-                        MenuStatBadge(label: nil, value: self.model.downloadCount, systemImage: "arrow.down.circle")
+                    if self.summary.downloadCount > 0 {
+                        MenuStatBadge(label: nil, value: self.summary.downloadCount, systemImage: "arrow.down.circle")
                     }
                 }
             }
@@ -56,7 +56,7 @@ struct ReleaseMenuItemView: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if let url = self.model.authorAvatarURL {
+        if let url = self.summary.authorAvatarURL {
             KFImage(url)
                 .placeholder { self.avatarPlaceholder }
                 .resizable()

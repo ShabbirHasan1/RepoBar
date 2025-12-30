@@ -272,6 +272,31 @@ struct LocalGitServiceTests {
         #expect((main?.aheadCount ?? 0) > 0)
         #expect(main?.lastCommitAuthor == "RepoBar Tests")
     }
+
+    @Test
+    func worktrees_includeMetadata() async throws {
+        let base = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let origin = base.appendingPathComponent("origin.git", isDirectory: true)
+        let repo = base.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: origin, withIntermediateDirectories: true)
+        try runGit(["init", "--bare", origin.path], in: base)
+        _ = try runGit(["clone", origin.path, repo.lastPathComponent], in: base)
+        try runGit(["switch", "-c", "main"], in: repo)
+        try runGit(["config", "user.email", "repobar-tests@example.com"], in: repo)
+        try runGit(["config", "user.name", "RepoBar Tests"], in: repo)
+        try Data("a\n".utf8).write(to: repo.appendingPathComponent("README.md"), options: .atomic)
+        try runGit(["add", "."], in: repo)
+        try runGit(["commit", "-m", "init"], in: repo)
+        try runGit(["push", "-u", "origin", "main"], in: repo)
+
+        let worktrees = try LocalGitService().worktrees(at: repo)
+        let current = worktrees.first { $0.isCurrent }
+        #expect(current?.branch == "main")
+        #expect(current?.upstream != nil)
+        #expect(current?.lastCommitAuthor == "RepoBar Tests")
+    }
 }
 
 private func makeTempDirectory() throws -> URL {

@@ -679,6 +679,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                     displayPath: displayPath,
                     branch: branch,
                     isCurrent: worktree.isCurrent,
+                    upstream: worktree.upstream,
+                    aheadCount: worktree.aheadCount,
+                    behindCount: worktree.behindCount,
+                    lastCommitDate: worktree.lastCommitDate,
+                    lastCommitAuthor: worktree.lastCommitAuthor,
+                    dirtySummary: worktree.dirtyCounts?.summary,
                     path: worktree.path,
                     fullName: fullName
                 ))
@@ -697,13 +703,25 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         displayPath: String,
         branch: String,
         isCurrent: Bool,
+        upstream: String?,
+        aheadCount: Int?,
+        behindCount: Int?,
+        lastCommitDate: Date?,
+        lastCommitAuthor: String?,
+        dirtySummary: String?,
         path: URL,
         fullName: String
     ) -> NSMenuItem {
         let row = LocalWorktreeMenuRowView(
             path: displayPath,
             branch: branch,
-            isCurrent: isCurrent
+            isCurrent: isCurrent,
+            upstream: upstream,
+            aheadCount: aheadCount,
+            behindCount: behindCount,
+            lastCommitDate: lastCommitDate,
+            lastCommitAuthor: lastCommitAuthor,
+            dirtySummary: dirtySummary
         )
         let item = self.menuBuilder.viewItem(for: row, enabled: true, highlightable: true)
         item.target = self

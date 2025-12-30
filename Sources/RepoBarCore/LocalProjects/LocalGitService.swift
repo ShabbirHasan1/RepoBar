@@ -26,6 +26,12 @@ public struct LocalGitWorktree: Equatable, Sendable {
     public let path: URL
     public let branch: String?
     public let isCurrent: Bool
+    public let upstream: String?
+    public let aheadCount: Int?
+    public let behindCount: Int?
+    public let lastCommitDate: Date?
+    public let lastCommitAuthor: String?
+    public let dirtyCounts: LocalDirtyCounts?
 }
 
 public struct LocalGitSyncResult: Equatable, Sendable {
@@ -145,7 +151,25 @@ public struct LocalGitService {
             guard let path = currentPath else { return }
             let branch = currentIsDetached ? nil : currentBranch
             let isCurrent = path.standardizedFileURL == repoURL.standardizedFileURL
-            entries.append(LocalGitWorktree(path: path, branch: branch, isCurrent: isCurrent))
+            let upstream = branch.flatMap { upstreamBranch(for: $0, at: repoURL, git: git) }
+            let (ahead, behind) = aheadBehind(for: branch, upstream: upstream, at: repoURL, git: git)
+            let (lastDate, lastAuthor) = lastCommitInfo(
+                for: branch ?? "HEAD",
+                at: path,
+                git: git
+            )
+            let dirtyCounts = dirtyCounts(at: path, git: git)
+            entries.append(LocalGitWorktree(
+                path: path,
+                branch: branch,
+                isCurrent: isCurrent,
+                upstream: upstream,
+                aheadCount: ahead,
+                behindCount: behind,
+                lastCommitDate: lastDate,
+                lastCommitAuthor: lastAuthor,
+                dirtyCounts: dirtyCounts
+            ))
             currentPath = nil
             currentBranch = nil
             currentIsDetached = false
@@ -277,12 +301,12 @@ private func aheadBehind(at repoURL: URL, git: LocalGitRunner) -> (ahead: Int?, 
 }
 
 private func aheadBehind(
-    for branch: String,
+    for branch: String?,
     upstream: String?,
     at repoURL: URL,
     git: LocalGitRunner
 ) -> (ahead: Int?, behind: Int?) {
-    guard let upstream else { return (nil, nil) }
+    guard let upstream, let branch else { return (nil, nil) }
     guard let output = try? git.run(["rev-list", "--left-right", "--count", "\(upstream)...\(branch)"], in: repoURL) else {
         return (nil, nil)
     }
@@ -308,4 +332,49 @@ private func lastCommitInfo(
     guard let timestamp = parts.first.flatMap({ TimeInterval($0) }) else { return (nil, nil) }
     let author = parts.count > 1 ? parts[1] : nil
     return (Date(timeIntervalSince1970: timestamp), author)
+}
+
+private func dirtyCounts(at repoURL: URL, git: LocalGitRunner) -> LocalDirtyCounts? {
+    guard let output = try? git.run(["status", "--porcelain"], in: repoURL) else { return nil }
+    var added: Set<String> = []
+    var modified: Set<String> = []
+    var deleted: Set<String> = []
+
+    for rawLine in output.split(whereSeparator: \.isNewline) {
+        let line = String(rawLine)
+        guard line.count >= 3 else { continue }
+        let status = String(line.prefix(2))
+        var path = String(line.dropFirst(3)).trimmingCharacters(in: .whitespacesAndNewlines)
+        if let arrowRange = path.range(of: " -> ") {
+            path = String(path[arrowRange.upperBound...])
+        }
+        guard path.isEmpty == false else { continue }
+
+        if status == "??" {
+            added.insert(path)
+            continue
+        }
+
+        if status.contains("D") {
+            deleted.insert(path)
+            continue
+        }
+
+        if status.contains("A") {
+            added.insert(path)
+            continue
+        }
+
+        if status.contains("M")
+            || status.contains("R")
+            || status.contains("C")
+            || status.contains("T")
+            || status.contains("U")
+        {
+            modified.insert(path)
+        }
+    }
+
+    if added.isEmpty, modified.isEmpty, deleted.isEmpty { return nil }
+    return LocalDirtyCounts(added: added.count, modified: modified.count, deleted: deleted.count)
 }

@@ -915,6 +915,7 @@ public actor GitHubClient {
                     updatedAt: $0.updatedAt,
                     authorLogin: $0.user?.login,
                     authorAvatarURL: $0.user?.avatarUrl,
+                    assigneeLogins: ($0.assignees ?? []).compactMap(\.login),
                     commentCount: $0.comments,
                     labels: $0.labels.map { RepoIssueLabel(name: $0.name, colorHex: $0.color) }
                 )
@@ -1083,10 +1084,11 @@ public actor GitHubClient {
         let comments: Int
         let user: RecentUser?
         let labels: [IssueLabel]
+        let assignees: [RecentUser]?
         let pullRequest: PullRequestMarker?
 
         enum CodingKeys: String, CodingKey {
-            case number, title, user, comments, labels
+            case number, title, user, comments, labels, assignees
             case htmlUrl = "html_url"
             case updatedAt = "updated_at"
             case pullRequest = "pull_request"

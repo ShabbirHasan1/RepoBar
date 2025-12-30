@@ -247,7 +247,7 @@ struct LocalProjectsServiceTests {
         try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
         try initializeRepo(at: repo, origin: "git@github.com:foo/repo.git")
 
-        for index in 0..<12 {
+        for index in 0 ..< 12 {
             try writeFile(repo.appendingPathComponent("file-\(index).txt"), contents: "\(index)\n")
         }
 
@@ -262,7 +262,7 @@ struct LocalProjectsServiceTests {
         #expect(status != nil)
         #expect(status?.dirtyFiles.count == 10)
         let dirtySet = Set(status?.dirtyFiles ?? [])
-        let created = Set((0..<12).map { "file-\($0).txt" })
+        let created = Set((0 ..< 12).map { "file-\($0).txt" })
         #expect(dirtySet.isSubset(of: created))
     }
 }

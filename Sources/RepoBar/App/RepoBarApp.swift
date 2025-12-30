@@ -636,6 +636,8 @@ final class Session {
     var contributionError: String?
     var heatmapRange: HeatmapRange = HeatmapFilter.range(span: .twelveMonths, now: Date(), alignToWeek: true)
     var menuRepoSelection: MenuRepoSelection = .all
+    var recentIssueScope: RecentIssueScope = .all
+    var recentIssueLabelSelection: Set<String> = []
     var recentPullRequestScope: RecentPullRequestScope = .all
     var recentPullRequestEngagement: RecentPullRequestEngagement = .all
     var localRepoIndex: LocalRepoIndex = .empty

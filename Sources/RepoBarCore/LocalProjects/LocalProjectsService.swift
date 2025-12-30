@@ -394,8 +394,15 @@ private func parseDirtyFiles(from output: String, limit: Int) -> [String] {
             path = String(path[arrowRange.upperBound...])
         }
         guard path.isEmpty == false else { continue }
-        if status == "??" || status.contains("M") || status.contains("A") || status.contains("D")
-            || status.contains("R") || status.contains("C") || status.contains("T") || status.contains("U") {
+        let isDirtyStatus = status == "??"
+            || status.contains("M")
+            || status.contains("A")
+            || status.contains("D")
+            || status.contains("R")
+            || status.contains("C")
+            || status.contains("T")
+            || status.contains("U")
+        if isDirtyStatus {
             files.append(path)
         }
     }

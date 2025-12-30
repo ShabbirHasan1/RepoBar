@@ -20,6 +20,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     private let recentListLimit = 20
     private let recentListCacheTTL: TimeInterval = 90
+    private let issueLabelChipLimit = 6
     private let recentIssuesCache = RecentListCache<RepoIssueSummary>()
     private let recentPullRequestsCache = RecentListCache<RepoPullRequestSummary>()
     private let recentReleasesCache = RecentListCache<RepoReleaseSummary>()
@@ -103,11 +104,30 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     @objc private func recentListFiltersChanged() {
         self.pruneRecentListMenus()
         for entry in self.recentListMenus.values {
-            guard entry.context.kind == .pullRequests, let menu = entry.menu else { continue }
+            guard entry.context.kind == .pullRequests || entry.context.kind == .issues,
+                  let menu = entry.menu
+            else { continue }
             Task { @MainActor [weak self] in
                 await self?.refreshRecentListMenu(menu: menu, context: entry.context)
             }
         }
+    }
+
+    @objc private func toggleIssueLabelFilter(_ sender: NSMenuItem) {
+        guard let label = sender.representedObject as? String else { return }
+        var selection = self.appState.session.recentIssueLabelSelection
+        if selection.contains(label) {
+            selection.remove(label)
+        } else {
+            selection.insert(label)
+        }
+        self.appState.session.recentIssueLabelSelection = selection
+        NotificationCenter.default.post(name: .recentListFiltersDidChange, object: nil)
+    }
+
+    @objc private func clearIssueLabelFilters() {
+        self.appState.session.recentIssueLabelSelection.removeAll()
+        NotificationCenter.default.post(name: .recentListFiltersDidChange, object: nil)
     }
 
     @objc func logOut() {
@@ -829,7 +849,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                     try await github.recentIssues(owner: owner, name: name, limit: limit)
                 },
                 render: { menu, _, items in
-                    for issue in items.prefix(self.recentListLimit) {
+                    let filtered = self.filteredIssues(items)
+                    if filtered.isEmpty {
+                        self.addEmptyListItem("No matching issues", to: menu)
+                        return
+                    }
+                    for issue in filtered.prefix(self.recentListLimit) {
                         self.addIssueMenuItem(issue, to: menu)
                     }
                 }
@@ -1014,6 +1039,31 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         return filtered
     }
 
+    private func filteredIssues(_ items: [RepoIssueSummary]) -> [RepoIssueSummary] {
+        var filtered = items
+        let scope = self.appState.session.recentIssueScope
+        if scope == .mine {
+            guard case let .loggedIn(user) = self.appState.session.account else { return [] }
+            let username = user.username.lowercased()
+            filtered = filtered.filter { issue in
+                if let author = issue.authorLogin?.lowercased(), author == username {
+                    return true
+                }
+                return issue.assigneeLogins.contains(where: { $0.lowercased() == username })
+            }
+        }
+
+        let selectedLabels = self.appState.session.recentIssueLabelSelection
+        if !selectedLabels.isEmpty {
+            let lowered = Set(selectedLabels.map { $0.lowercased() })
+            filtered = filtered.filter { issue in
+                issue.labels.contains { lowered.contains($0.name.lowercased()) }
+            }
+        }
+
+        return filtered
+    }
+
     private func makeDescriptor(
         _ config: RecentMenuDescriptorConfig<some Sendable>,
         actions: @escaping (String) -> [RecentMenuAction] = { _ in [] }
@@ -1082,21 +1132,21 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             systemImage: descriptor.headerIcon
         )
         let actions = descriptor.actions(context.fullName)
-        let extras = self.pullRequestFilterMenuItems(for: context)
         let cached = descriptor.cached(context.fullName, now, self.recentListCacheTTL)
         let stale = cached ?? descriptor.stale(context.fullName)
+        let staleExtras = self.recentListExtras(for: context, items: stale)
         if let stale {
             self.populateRecentListMenu(
                 menu,
                 header: header,
                 actions: actions,
-                extras: extras,
+                extras: staleExtras,
                 content: .items(stale, emptyTitle: descriptor.emptyTitle, render: { menu, items in
                     descriptor.render(menu, header.fullName, items)
                 })
             )
         } else {
-            self.populateRecentListMenu(menu, header: header, actions: actions, extras: extras, content: .loading)
+            self.populateRecentListMenu(menu, header: header, actions: actions, extras: staleExtras, content: .loading)
         }
         menu.update()
 
@@ -1107,14 +1157,20 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 menu,
                 header: header,
                 actions: actions,
-                extras: extras,
+                extras: self.recentListExtras(for: context, items: items),
                 content: .items(items, emptyTitle: descriptor.emptyTitle, render: { menu, items in
                     descriptor.render(menu, header.fullName, items)
                 })
             )
         } catch {
             if stale == nil {
-                self.populateRecentListMenu(menu, header: header, actions: actions, extras: extras, content: .message("Failed to load"))
+                self.populateRecentListMenu(
+                    menu,
+                    header: header,
+                    actions: actions,
+                    extras: staleExtras,
+                    content: .message("Failed to load")
+                )
             }
         }
         menu.update()
@@ -1354,11 +1410,97 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         menu.addItem(item)
     }
 
-    private func pullRequestFilterMenuItems(for context: RepoRecentMenuContext) -> [NSMenuItem] {
-        guard context.kind == .pullRequests else { return [] }
+    private func recentListExtras(for context: RepoRecentMenuContext, items: RecentMenuItems?) -> [NSMenuItem] {
+        switch context.kind {
+        case .pullRequests:
+            self.pullRequestFilterMenuItems()
+        case .issues:
+            self.issueFilterMenuItems(items: items)
+        default:
+            []
+        }
+    }
+
+    private func pullRequestFilterMenuItems() -> [NSMenuItem] {
         let filters = RecentPullRequestFiltersView(session: self.appState.session)
         let item = self.hostingMenuItem(for: filters, enabled: true)
         return [item, .separator()]
+    }
+
+    private func issueFilterMenuItems(items: RecentMenuItems?) -> [NSMenuItem] {
+        guard case let .issues(issueItems) = items ?? .issues([]) else { return [] }
+        let labelOptions = self.issueLabelOptions(for: issueItems)
+        let chipOptions = self.issueLabelChipOptions(from: labelOptions)
+        let filters = RecentIssueFiltersView(session: self.appState.session, labels: chipOptions)
+        let item = self.hostingMenuItem(for: filters, enabled: true)
+        var extras: [NSMenuItem] = [item]
+        if let moreItem = self.issueLabelMoreMenuItem(for: labelOptions) {
+            extras.append(moreItem)
+        }
+        extras.append(.separator())
+        return extras
+    }
+
+    private func issueLabelOptions(for items: [RepoIssueSummary]) -> [RecentIssueLabelOption] {
+        var counts: [String: (count: Int, colorHex: String)] = [:]
+        for issue in items {
+            for label in issue.labels {
+                let key = label.name
+                if var entry = counts[key] {
+                    entry.count += 1
+                    counts[key] = entry
+                } else {
+                    counts[key] = (count: 1, colorHex: label.colorHex)
+                }
+            }
+        }
+
+        var options = counts.map { RecentIssueLabelOption(name: $0.key, colorHex: $0.value.colorHex, count: $0.value.count) }
+        options.sort {
+            if $0.count != $1.count { return $0.count > $1.count }
+            return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+        }
+
+        let selected = self.appState.session.recentIssueLabelSelection
+        let known = Set(options.map(\.name))
+        let missing = selected.subtracting(known)
+        for name in missing.sorted(by: { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }) {
+            options.append(RecentIssueLabelOption(name: name, colorHex: "", count: 0))
+        }
+
+        return options
+    }
+
+    private func issueLabelChipOptions(from options: [RecentIssueLabelOption]) -> [RecentIssueLabelOption] {
+        let selected = self.appState.session.recentIssueLabelSelection
+        let selectedOptions = options.filter { selected.contains($0.name) }
+        let remaining = options.filter { !selected.contains($0.name) }
+        let combined = selectedOptions + remaining
+        return Array(combined.prefix(self.issueLabelChipLimit))
+    }
+
+    private func issueLabelMoreMenuItem(for options: [RecentIssueLabelOption]) -> NSMenuItem? {
+        guard options.count > self.issueLabelChipLimit else { return nil }
+        let menu = NSMenu()
+        menu.autoenablesItems = false
+        let all = NSMenuItem(title: "All Labels", action: #selector(self.clearIssueLabelFilters), keyEquivalent: "")
+        all.target = self
+        all.state = self.appState.session.recentIssueLabelSelection.isEmpty ? .on : .off
+        menu.addItem(all)
+        menu.addItem(.separator())
+
+        for option in options {
+            let title = option.count > 0 ? "\(option.name) (\(option.count))" : option.name
+            let item = NSMenuItem(title: title, action: #selector(self.toggleIssueLabelFilter(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = option.name
+            item.state = self.appState.session.recentIssueLabelSelection.contains(option.name) ? .on : .off
+            menu.addItem(item)
+        }
+
+        let parent = NSMenuItem(title: "More Labels…", action: nil, keyEquivalent: "")
+        parent.submenu = menu
+        return parent
     }
 
     private func hostingMenuItem(for view: some View, enabled: Bool) -> NSMenuItem {

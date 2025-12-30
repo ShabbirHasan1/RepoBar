@@ -17,6 +17,7 @@ public struct RepoIssueSummary: Sendable, Hashable {
     public let updatedAt: Date
     public let authorLogin: String?
     public let authorAvatarURL: URL?
+    public let assigneeLogins: [String]
     public let commentCount: Int
     public let labels: [RepoIssueLabel]
 
@@ -27,6 +28,7 @@ public struct RepoIssueSummary: Sendable, Hashable {
         updatedAt: Date,
         authorLogin: String?,
         authorAvatarURL: URL?,
+        assigneeLogins: [String],
         commentCount: Int,
         labels: [RepoIssueLabel]
     ) {
@@ -36,6 +38,7 @@ public struct RepoIssueSummary: Sendable, Hashable {
         self.updatedAt = updatedAt
         self.authorLogin = authorLogin
         self.authorAvatarURL = authorAvatarURL
+        self.assigneeLogins = assigneeLogins
         self.commentCount = commentCount
         self.labels = labels
     }

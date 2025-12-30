@@ -17,6 +17,9 @@ struct RecentRepoItemsDecodingTests {
               { "name": "bug", "color": "d73a4a" },
               { "name": "good first issue", "color": "7057ff" }
             ],
+            "assignees": [
+              { "login": "steipete", "avatar_url": "https://avatars.githubusercontent.com/u/583?v=4" }
+            ],
             "user": { "login": "alice", "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4" }
           },
           {
@@ -39,6 +42,7 @@ struct RecentRepoItemsDecodingTests {
         #expect(items.first?.authorAvatarURL != nil)
         #expect(items.first?.commentCount == 3)
         #expect(items.first?.labels.count == 2)
+        #expect(items.first?.assigneeLogins == ["steipete"])
     }
 
     @Test

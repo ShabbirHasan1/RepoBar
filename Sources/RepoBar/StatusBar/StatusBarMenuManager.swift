@@ -15,6 +15,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private weak var menuResizeWindow: NSWindow?
     private var lastMainMenuWidth: CGFloat?
     private var lastMainMenuSignature: MenuBuildSignature?
+    private var lastMainMenuWidthSignature: MenuBuildSignature?
     private var webURLBuilder: RepoWebURLBuilder { RepoWebURLBuilder(host: self.appState.session.settings.githubHost) }
 
     private let recentListLimit = 20
@@ -285,15 +286,19 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             let repoFullNames = Set(menu.items.compactMap { $0.representedObject as? String }.filter { $0.contains("/") })
             self.prefetchRecentLists(fullNames: repoFullNames)
 
+            let shouldRecomputeWidth = self.lastMainMenuWidth == nil || self.lastMainMenuWidthSignature != plan.signature
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                let measuredWidth = self.menuBuilder.menuWidth(for: menu)
-                let priorWidth = self.lastMainMenuWidth
-                let shouldRemeasure = priorWidth == nil || abs(measuredWidth - (priorWidth ?? 0)) > 0.5
-                self.lastMainMenuWidth = measuredWidth
-                if shouldRemeasure {
-                    self.menuBuilder.refreshMenuViewHeights(in: menu, width: measuredWidth)
-                    menu.update()
+                if shouldRecomputeWidth {
+                    let measuredWidth = self.menuBuilder.menuWidth(for: menu)
+                    let priorWidth = self.lastMainMenuWidth
+                    let shouldRemeasure = priorWidth == nil || abs(measuredWidth - (priorWidth ?? 0)) > 0.5
+                    self.lastMainMenuWidth = measuredWidth
+                    self.lastMainMenuWidthSignature = plan.signature
+                    if shouldRemeasure {
+                        self.menuBuilder.refreshMenuViewHeights(in: menu, width: measuredWidth)
+                        menu.update()
+                    }
                 }
                 self.menuBuilder.clearHighlights(in: menu)
                 self.startObservingMenuResize(for: menu)

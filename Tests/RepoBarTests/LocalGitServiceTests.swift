@@ -130,6 +130,115 @@ struct LocalGitServiceTests {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         #expect(isRepo == "true")
     }
+
+    @Test
+    func branches_marksCurrentBranch() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let repo = root.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
+        try initializeRepo(at: repo)
+
+        try LocalGitService().createBranch(at: repo, name: "feature/test")
+
+        let branches = try LocalGitService().branches(at: repo)
+        let current = branches.first { $0.isCurrent }?.name
+        #expect(current == "feature/test")
+        #expect(branches.contains(where: { $0.name == "main" }))
+    }
+
+    @Test
+    func worktrees_parsesDetachedEntry() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let repo = root.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
+        try initializeRepo(at: repo)
+
+        let detached = root.appendingPathComponent("detached", isDirectory: true)
+        try runGit(["worktree", "add", "--detach", detached.path], in: repo)
+
+        let worktrees = try LocalGitService().worktrees(at: repo)
+        let detachedEntry = worktrees.first { $0.path.standardizedFileURL == detached.standardizedFileURL }
+        #expect(detachedEntry?.branch == nil)
+        #expect(detachedEntry?.isCurrent == false)
+        #expect(worktrees.contains(where: { $0.isCurrent }))
+    }
+
+    @Test
+    func hardResetToUpstream_discardsLocalCommit() async throws {
+        let base = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let origin = base.appendingPathComponent("origin.git", isDirectory: true)
+        let repo = base.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: origin, withIntermediateDirectories: true)
+        try runGit(["init", "--bare", origin.path], in: base)
+        _ = try runGit(["clone", origin.path, repo.lastPathComponent], in: base)
+        try runGit(["switch", "-c", "main"], in: repo)
+        try runGit(["config", "user.email", "repobar-tests@example.com"], in: repo)
+        try runGit(["config", "user.name", "RepoBar Tests"], in: repo)
+        try Data("a\n".utf8).write(to: repo.appendingPathComponent("README.md"), options: .atomic)
+        try runGit(["add", "."], in: repo)
+        try runGit(["commit", "-m", "init"], in: repo)
+        try runGit(["push", "-u", "origin", "main"], in: repo)
+
+        try Data("local\n".utf8).write(to: repo.appendingPathComponent("local.txt"), options: .atomic)
+        try runGit(["add", "."], in: repo)
+        try runGit(["commit", "-m", "local"], in: repo)
+
+        try LocalGitService().hardResetToUpstream(at: repo)
+
+        let head = try runGit(["rev-parse", "HEAD"], in: repo).trimmingCharacters(in: .whitespacesAndNewlines)
+        let upstream = try runGit(["rev-parse", "@{u}"], in: repo).trimmingCharacters(in: .whitespacesAndNewlines)
+        #expect(head == upstream)
+    }
+
+    @Test
+    func smartSync_errorsWhenDetached() async throws {
+        let root = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let repo = root.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
+        try initializeRepo(at: repo)
+        _ = try runGit(["checkout", "--detach"], in: repo)
+
+        do {
+            _ = try LocalGitService().smartSync(at: repo)
+            #expect(Bool(false))
+        } catch let error as LocalGitError {
+            #expect(error == .detachedHead)
+        }
+    }
+
+    @Test
+    func smartSync_pushesWhenAhead() async throws {
+        let base = try makeTempDirectory()
+        defer { try? FileManager.default.removeItem(at: base) }
+
+        let origin = base.appendingPathComponent("origin.git", isDirectory: true)
+        let repo = base.appendingPathComponent("repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: origin, withIntermediateDirectories: true)
+        try runGit(["init", "--bare", origin.path], in: base)
+        _ = try runGit(["clone", origin.path, repo.lastPathComponent], in: base)
+        try runGit(["switch", "-c", "main"], in: repo)
+        try runGit(["config", "user.email", "repobar-tests@example.com"], in: repo)
+        try runGit(["config", "user.name", "RepoBar Tests"], in: repo)
+        try Data("a\n".utf8).write(to: repo.appendingPathComponent("README.md"), options: .atomic)
+        try runGit(["add", "."], in: repo)
+        try runGit(["commit", "-m", "init"], in: repo)
+        try runGit(["push", "-u", "origin", "main"], in: repo)
+
+        try Data("b\n".utf8).write(to: repo.appendingPathComponent("README.md"), options: .atomic)
+        try runGit(["add", "."], in: repo)
+        try runGit(["commit", "-m", "next"], in: repo)
+
+        let result = try LocalGitService().smartSync(at: repo)
+        #expect(result.didPush == true)
+    }
 }
 
 private func makeTempDirectory() throws -> URL {

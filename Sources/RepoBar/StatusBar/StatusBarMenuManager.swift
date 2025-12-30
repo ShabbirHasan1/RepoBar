@@ -335,6 +335,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openIssues),
                 emptyTitle: "No open issues",
                 cache: self.recentIssuesCache,
+                wrap: RecentMenuItems.issues,
+                unwrap: { boxed in
+                    if case let .issues(items) = boxed { return items }
+                    return nil
+                },
                 fetch: { github, owner, name, limit in
                     try await github.recentIssues(owner: owner, name: name, limit: limit)
                 },
@@ -351,6 +356,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openPulls),
                 emptyTitle: "No open pull requests",
                 cache: self.recentPullRequestsCache,
+                wrap: RecentMenuItems.pullRequests,
+                unwrap: { boxed in
+                    if case let .pullRequests(items) = boxed { return items }
+                    return nil
+                },
                 fetch: { github, owner, name, limit in
                     try await github.recentPullRequests(owner: owner, name: name, limit: limit)
                 },
@@ -367,6 +377,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openReleases),
                 emptyTitle: "No releases",
                 cache: self.recentReleasesCache,
+                wrap: RecentMenuItems.releases,
+                unwrap: { boxed in
+                    if case let .releases(items) = boxed { return items }
+                    return nil
+                },
                 actions: releaseActions,
                 fetch: { github, owner, name, limit in
                     try await github.recentReleases(owner: owner, name: name, limit: limit)
@@ -384,6 +399,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openActions),
                 emptyTitle: "No CI runs",
                 cache: self.recentWorkflowRunsCache,
+                wrap: RecentMenuItems.workflowRuns,
+                unwrap: { boxed in
+                    if case let .workflowRuns(items) = boxed { return items }
+                    return nil
+                },
                 fetch: { github, owner, name, limit in
                     try await github.recentWorkflowRuns(owner: owner, name: name, limit: limit)
                 },
@@ -400,6 +420,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openDiscussions),
                 emptyTitle: "No discussions",
                 cache: self.recentDiscussionsCache,
+                wrap: RecentMenuItems.discussions,
+                unwrap: { boxed in
+                    if case let .discussions(items) = boxed { return items }
+                    return nil
+                },
                 fetch: { github, owner, name, limit in
                     try await github.recentDiscussions(owner: owner, name: name, limit: limit)
                 },
@@ -416,6 +441,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openTags),
                 emptyTitle: "No tags",
                 cache: self.recentTagsCache,
+                wrap: RecentMenuItems.tags,
+                unwrap: { boxed in
+                    if case let .tags(items) = boxed { return items }
+                    return nil
+                },
                 fetch: { github, owner, name, limit in
                     try await github.recentTags(owner: owner, name: name, limit: limit)
                 },
@@ -432,6 +462,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openBranches),
                 emptyTitle: "No branches",
                 cache: self.recentBranchesCache,
+                wrap: RecentMenuItems.branches,
+                unwrap: { boxed in
+                    if case let .branches(items) = boxed { return items }
+                    return nil
+                },
                 fetch: { github, owner, name, limit in
                     try await github.recentBranches(owner: owner, name: name, limit: limit)
                 },
@@ -448,6 +483,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 openAction: #selector(self.openContributors),
                 emptyTitle: "No contributors",
                 cache: self.recentContributorsCache,
+                wrap: RecentMenuItems.contributors,
+                unwrap: { boxed in
+                    if case let .contributors(items) = boxed { return items }
+                    return nil
+                },
                 fetch: { github, owner, name, limit in
                     try await github.topContributors(owner: owner, name: name, limit: limit)
                 },
@@ -469,15 +509,13 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         openAction: Selector,
         emptyTitle: String,
         cache: RecentListCache<Item>,
+        wrap: @escaping ([Item]) -> RecentMenuItems,
+        unwrap: @escaping (RecentMenuItems) -> [Item]?,
         actions: @escaping (String) -> [RecentMenuAction] = { _ in [] },
-        fetch: @escaping (GitHubClient, String, String, Int) async throws -> [Item],
+        fetch: @escaping @Sendable (GitHubClient, String, String, Int) async throws -> [Item],
         render: @escaping (NSMenu, String, [Item]) -> Void
     ) -> RecentMenuDescriptor {
         let github = self.appState.github
-
-        func erase(_ items: [Item]) -> [Any] {
-            items.map { $0 as Any }
-        }
 
         return RecentMenuDescriptor(
             kind: kind,
@@ -487,37 +525,25 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             emptyTitle: emptyTitle,
             actions: actions,
             cached: { key, now, ttl in
-                cache.cached(for: key, now: now, maxAge: ttl).map(erase)
+                cache.cached(for: key, now: now, maxAge: ttl).map(wrap)
             },
             stale: { key in
-                cache.stale(for: key).map(erase)
+                cache.stale(for: key).map(wrap)
             },
             needsRefresh: { key, now, ttl in
                 cache.needsRefresh(for: key, now: now, maxAge: ttl)
             },
-            task: { key, factory in
-                Task {
-                    let task = cache.task(for: key) {
-                        let itemsAny = try await factory()
-                        return (itemsAny as? [Item]) ?? []
-                    }
-                    let items = try await task.value
-                    return erase(items)
+            load: { key, owner, name, limit in
+                let task = cache.task(for: key) {
+                    try await fetch(github, owner, name, limit)
                 }
+                defer { cache.clearInflight(for: key) }
+                let items = try await task.value
+                cache.store(items, for: key, fetchedAt: Date())
+                return wrap(items)
             },
-            clearInflight: { key in
-                cache.clearInflight(for: key)
-            },
-            store: { key, itemsAny, date in
-                guard let items = itemsAny as? [Item] else { return }
-                cache.store(items, for: key, fetchedAt: date)
-            },
-            fetch: { owner, name, limit in
-                let items = try await fetch(github, owner, name, limit)
-                return erase(items)
-            },
-            render: { menu, fullName, itemsAny in
-                guard let items = itemsAny as? [Item] else { return }
+            render: { menu, fullName, boxed in
+                guard let items = unwrap(boxed) else { return }
                 render(menu, fullName, items)
             }
         )
@@ -569,13 +595,8 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         menu.update()
 
         guard descriptor.needsRefresh(context.fullName, now, self.recentListCacheTTL) else { return }
-        let task = descriptor.task(context.fullName) { [recentListLimit = self.recentListLimit] in
-            try await descriptor.fetch(owner, name, recentListLimit)
-        }
-        defer { descriptor.clearInflight(context.fullName) }
         do {
-            let items = try await task.value
-            descriptor.store(context.fullName, items, Date())
+            let items = try await descriptor.load(context.fullName, owner, name, self.recentListLimit)
             self.populateRecentListMenu(
                 menu,
                 header: header,
@@ -609,15 +630,9 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let now = Date()
         guard let descriptor = self.recentMenuDescriptor(for: kind) else { return }
         guard descriptor.needsRefresh(fullName, now, self.recentListCacheTTL) else { return }
-        let task = descriptor.task(fullName) { [recentListLimit = self.recentListLimit] in
-            try await descriptor.fetch(owner, name, recentListLimit)
-        }
         Task { @MainActor [weak self] in
             guard let self else { return }
-            defer { descriptor.clearInflight(fullName) }
-            if let items = try? await task.value {
-                descriptor.store(fullName, items, Date())
-            }
+            _ = try? await descriptor.load(fullName, owner, name, self.recentListLimit)
         }
     }
 
@@ -625,7 +640,44 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         case signedOut
         case loading
         case message(String)
-        case items([Any], emptyTitle: String, render: (NSMenu, [Any]) -> Void)
+        case items(RecentMenuItems, emptyTitle: String, render: (NSMenu, RecentMenuItems) -> Void)
+    }
+
+    private enum RecentMenuItems: Sendable {
+        case issues([RepoIssueSummary])
+        case pullRequests([RepoPullRequestSummary])
+        case releases([RepoReleaseSummary])
+        case workflowRuns([RepoWorkflowRunSummary])
+        case discussions([RepoDiscussionSummary])
+        case tags([RepoTagSummary])
+        case branches([RepoBranchSummary])
+        case contributors([RepoContributorSummary])
+
+        var isEmpty: Bool {
+            switch self {
+            case let .issues(items): items.isEmpty
+            case let .pullRequests(items): items.isEmpty
+            case let .releases(items): items.isEmpty
+            case let .workflowRuns(items): items.isEmpty
+            case let .discussions(items): items.isEmpty
+            case let .tags(items): items.isEmpty
+            case let .branches(items): items.isEmpty
+            case let .contributors(items): items.isEmpty
+            }
+        }
+
+        var count: Int {
+            switch self {
+            case let .issues(items): items.count
+            case let .pullRequests(items): items.count
+            case let .releases(items): items.count
+            case let .workflowRuns(items): items.count
+            case let .discussions(items): items.count
+            case let .tags(items): items.count
+            case let .branches(items): items.count
+            case let .contributors(items): items.count
+            }
+        }
     }
 
     private struct RecentMenuHeader {
@@ -650,14 +702,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let openAction: Selector
         let emptyTitle: String
         let actions: (String) -> [RecentMenuAction]
-        let cached: (String, Date, TimeInterval) -> [Any]?
-        let stale: (String) -> [Any]?
+        let cached: (String, Date, TimeInterval) -> RecentMenuItems?
+        let stale: (String) -> RecentMenuItems?
         let needsRefresh: (String, Date, TimeInterval) -> Bool
-        let task: (String, @escaping () async throws -> [Any]) -> Task<[Any], Error>
-        let clearInflight: (String) -> Void
-        let store: (String, [Any], Date) -> Void
-        let fetch: (String, String, Int) async throws -> [Any]
-        let render: (NSMenu, String, [Any]) -> Void
+        let load: @MainActor (String, String, String, Int) async throws -> RecentMenuItems
+        let render: (NSMenu, String, RecentMenuItems) -> Void
     }
 
     private func populateRecentListMenu(

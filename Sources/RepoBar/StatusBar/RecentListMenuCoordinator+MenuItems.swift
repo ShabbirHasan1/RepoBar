@@ -142,7 +142,7 @@ extension RecentListMenuCoordinator {
     func recentListExtras(for context: RepoRecentMenuContext, items: RecentMenuItems?) -> [NSMenuItem] {
         switch context.kind {
         case .pullRequests:
-            self.pullRequestFilterMenuItems()
+            self.pullRequestFilterMenuItems(items: items)
         case .issues:
             self.issueFilterMenuItems(items: items)
         default:
@@ -150,14 +150,19 @@ extension RecentListMenuCoordinator {
         }
     }
 
-    func pullRequestFilterMenuItems() -> [NSMenuItem] {
+    func pullRequestFilterMenuItems(items: RecentMenuItems?) -> [NSMenuItem] {
+        guard case let .pullRequests(pullRequestItems) = items ?? .pullRequests([]),
+              pullRequestItems.isEmpty == false
+        else { return [] }
         let filters = RecentPullRequestFiltersView(session: self.appState.session)
         let item = self.hostingMenuItem(for: filters, enabled: true)
         return [item, .separator()]
     }
 
     func issueFilterMenuItems(items: RecentMenuItems?) -> [NSMenuItem] {
-        guard case let .issues(issueItems) = items ?? .issues([]) else { return [] }
+        guard case let .issues(issueItems) = items ?? .issues([]),
+              issueItems.isEmpty == false
+        else { return [] }
         let labelOptions = self.issueLabelOptions(for: issueItems)
         let chipOptions = self.issueLabelChipOptions(from: labelOptions)
         let filters = RecentIssueFiltersView(session: self.appState.session, labels: chipOptions)

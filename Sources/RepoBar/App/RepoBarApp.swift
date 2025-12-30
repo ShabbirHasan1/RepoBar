@@ -212,6 +212,7 @@ final class AppState {
                 await MainActor.run {
                     self.session.repositories = []
                     self.session.menuSnapshot = nil
+                    self.session.menuDisplayIndex = [:]
                     self.session.hasLoadedRepositories = false
                     self.session.lastError = nil
                     self.session.localRepoIndex = localSnapshot.repoIndex
@@ -254,6 +255,7 @@ final class AppState {
                 self.session.localProjectsAccessDenied = localSnapshot.accessDenied
                 self.session.localProjectsScanInProgress = false
             }
+            await self.updateMenuDisplayIndex(now: now)
             self.prefetchMenuTargets(from: final, visibleCount: targets.count, token: self.refreshTaskToken)
             let reset = await self.github.rateLimitReset(now: now)
             let message = await self.github.rateLimitMessage(now: now)
@@ -419,6 +421,18 @@ final class AppState {
         }
     }
 
+    private func updateMenuDisplayIndex(now: Date) async {
+        let repos = self.session.repositories
+        let localIndex = self.session.localRepoIndex
+        let models = repos.map { repo in
+            RepositoryDisplayModel(repo: repo, localStatus: localIndex.status(for: repo), now: now)
+        }
+        let index = Dictionary(uniqueKeysWithValues: models.map { ($0.title, $0) })
+        await MainActor.run {
+            self.session.menuDisplayIndex = index
+        }
+    }
+
     private func prefetchMenuTargets(
         from repos: [Repository],
         visibleCount: Int,
@@ -439,12 +453,19 @@ final class AppState {
                 guard self.refreshTaskToken == token else { return }
                 let merged = self.mergeHydrated(hydrated, into: self.session.repositories)
                 self.session.repositories = merged
-                if let snapshot = self.session.menuSnapshot {
-                    self.session.menuSnapshot = MenuSnapshot(
-                        repositories: merged,
-                        capturedAt: snapshot.capturedAt
+                let capturedAt = self.session.menuSnapshot?.capturedAt ?? Date()
+                self.session.menuSnapshot = MenuSnapshot(
+                    repositories: merged,
+                    capturedAt: capturedAt
+                )
+                let models = merged.map { repo in
+                    RepositoryDisplayModel(
+                        repo: repo,
+                        localStatus: self.session.localRepoIndex.status(for: repo),
+                        now: capturedAt
                     )
                 }
+                self.session.menuDisplayIndex = Dictionary(uniqueKeysWithValues: models.map { ($0.title, $0) })
             }
         }
     }
@@ -592,6 +613,7 @@ final class Session {
     var account: AccountState = .loggedOut
     var repositories: [Repository] = []
     var menuSnapshot: MenuSnapshot?
+    var menuDisplayIndex: [String: RepositoryDisplayModel] = [:]
     var hasLoadedRepositories = false
     var settings = UserSettings()
     var settingsSelectedTab: SettingsTab = .general

@@ -622,12 +622,14 @@ final class StatusBarMenuBuilder {
             ? (session.menuSnapshot?.repositories ?? [])
             : session.repositories
         let sorted = RepositoryPipeline.apply(baseRepos, query: query)
+        let displayIndex = session.menuDisplayIndex
         return sorted.map { repo in
-            RepositoryDisplayModel(
-                repo: repo,
-                localStatus: session.localRepoIndex.status(for: repo),
-                now: now
-            )
+            displayIndex[repo.fullName]
+                ?? RepositoryDisplayModel(
+                    repo: repo,
+                    localStatus: session.localRepoIndex.status(for: repo),
+                    now: now
+                )
         }
     }
 

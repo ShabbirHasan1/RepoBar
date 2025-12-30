@@ -47,13 +47,11 @@ struct LocalRepoStateMenuView: View {
 
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: MenuStyle.submenuIconSpacing) {
-            Image(systemName: self.status.syncState.symbolName)
-                .font(.caption2)
-                .foregroundStyle(self.localSyncColor(for: self.status.syncState))
-                .frame(width: MenuStyle.submenuIconColumnWidth, alignment: .center)
-                .alignmentGuide(.firstTextBaseline) { dimensions in
-                    dimensions[VerticalAlignment.center] + MenuStyle.submenuIconBaselineOffset
-                }
+            SubmenuIconColumnView {
+                Image(systemName: self.status.syncState.symbolName)
+                    .font(.caption2)
+                    .foregroundStyle(self.localSyncColor(for: self.status.syncState))
+            }
             Text(self.status.branch)
                 .font(.system(size: 13, weight: .medium))
                 .lineLimit(1)
@@ -71,10 +69,7 @@ struct LocalRepoStateMenuView: View {
 
     private var detailsRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: MenuStyle.submenuIconSpacing) {
-            Text(" ")
-                .font(.caption2)
-                .frame(width: MenuStyle.submenuIconColumnWidth)
-                .accessibilityHidden(true)
+            SubmenuIconPlaceholderView(font: .caption2)
 
             Text(self.detailsLine)
                 .font(.caption2)
@@ -86,10 +81,7 @@ struct LocalRepoStateMenuView: View {
 
     private var dirtyFilesRow: some View {
         HStack(alignment: .top, spacing: MenuStyle.submenuIconSpacing) {
-            Text(" ")
-                .font(.caption2)
-                .frame(width: MenuStyle.submenuIconColumnWidth)
-                .accessibilityHidden(true)
+            SubmenuIconPlaceholderView(font: .caption2)
 
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(self.status.dirtyFiles.prefix(MenuStyle.submenuDirtyFileLimit)), id: \.self) { file in

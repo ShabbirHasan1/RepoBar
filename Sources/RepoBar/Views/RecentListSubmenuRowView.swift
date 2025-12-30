@@ -33,14 +33,12 @@ struct RecentListSubmenuRowView: View {
 
     private var row: some View {
         HStack(alignment: .firstTextBaseline, spacing: MenuStyle.submenuIconSpacing) {
-            Image(systemName: self.systemImage)
-                .symbolRenderingMode(.hierarchical)
-                .font(.caption)
-                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                .frame(width: MenuStyle.submenuIconColumnWidth, alignment: .center)
-                .alignmentGuide(.firstTextBaseline) { dimensions in
-                    dimensions[VerticalAlignment.center] + MenuStyle.submenuIconBaselineOffset
-                }
+            SubmenuIconColumnView {
+                Image(systemName: self.systemImage)
+                    .symbolRenderingMode(.hierarchical)
+                    .font(.caption)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+            }
 
             Text(self.title)
                 .font(.system(size: 14))

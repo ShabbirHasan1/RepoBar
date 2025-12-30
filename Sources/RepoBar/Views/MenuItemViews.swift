@@ -471,10 +471,7 @@ struct MenuInfoTextRowView: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: self.iconSpacing) {
-            Text(" ")
-                .font(.caption)
-                .frame(width: self.iconColumnWidth)
-                .accessibilityHidden(true)
+            SubmenuIconPlaceholderView(font: .caption)
 
             Text(self.text)
                 .font(.caption)

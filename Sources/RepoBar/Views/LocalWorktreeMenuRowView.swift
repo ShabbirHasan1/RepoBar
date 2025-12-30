@@ -9,13 +9,11 @@ struct LocalWorktreeMenuRowView: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: MenuStyle.submenuIconSpacing) {
-            Image(systemName: self.isCurrent ? "checkmark" : "circle")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                .frame(width: MenuStyle.submenuIconColumnWidth, alignment: .center)
-                .alignmentGuide(.firstTextBaseline) { dimensions in
-                    dimensions[VerticalAlignment.center] + MenuStyle.submenuIconBaselineOffset
-                }
+            SubmenuIconColumnView {
+                Image(systemName: self.isCurrent ? "checkmark" : "circle")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+            }
 
             Text(self.path)
                 .font(.system(size: 13))

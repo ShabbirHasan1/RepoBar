@@ -56,37 +56,45 @@ struct ContributionHeaderView: View {
 
     @ViewBuilder
     private var content: some View {
-        if !self.session.hasLoadedRepositories, !self.hasCachedHeatmap {
-            ProgressView()
-                .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 52, alignment: .center)
-        } else if self.isLoading, !self.hasCachedHeatmap {
-            ProgressView()
-                .frame(maxWidth: .infinity, minHeight: 44, maxHeight: 52, alignment: .center)
-        } else if self.failed {
-            VStack(spacing: 6) {
-                Text(self.session.contributionError ?? "Unable to load contributions right now.")
-                    .font(.caption)
-                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                    .multilineTextAlignment(.center)
-                Button("Retry") {
-                    self.appState.clearContributionCache()
-                    Task { await self.appState.loadContributionHeatmapIfNeeded(for: self.username) }
-                }
-                .buttonStyle(.borderless)
-            }
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-        } else {
-            let filtered = HeatmapFilter.filter(self.session.contributionHeatmap, range: self.session.heatmapRange)
+        let filtered = HeatmapFilter.filter(self.session.contributionHeatmap, range: self.session.heatmapRange)
+        let hasHeatmap = self.hasCachedHeatmap
+        let showProgress = (self.session.hasLoadedRepositories == false || self.isLoading) && !hasHeatmap && !self.failed
+
+        ZStack {
             VStack(spacing: 4) {
-                HeatmapView(cells: filtered, accentTone: self.session.settings.appearance.accentTone, height: Self.graphHeight)
+                HeatmapView(
+                    cells: filtered,
+                    accentTone: self.session.settings.appearance.accentTone,
+                    height: Self.graphHeight
+                )
                 HeatmapAxisLabelsView(
                     range: self.session.heatmapRange,
                     foregroundStyle: MenuHighlightStyle.secondary(self.isHighlighted)
                 )
             }
             .frame(maxWidth: .infinity)
-            .accessibilityLabel("Contribution graph for \(self.username)")
+            .opacity(hasHeatmap ? 1 : 0)
+
+            if showProgress {
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+            } else if self.failed {
+                VStack(spacing: 6) {
+                    Text(self.session.contributionError ?? "Unable to load contributions right now.")
+                        .font(.caption)
+                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                        .multilineTextAlignment(.center)
+                    Button("Retry") {
+                        self.appState.clearContributionCache()
+                        Task { await self.appState.loadContributionHeatmapIfNeeded(for: self.username) }
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
+            }
         }
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel(hasHeatmap ? "Contribution graph for \(self.username)" : "Contribution graph loading")
     }
 
     private func openProfile() {

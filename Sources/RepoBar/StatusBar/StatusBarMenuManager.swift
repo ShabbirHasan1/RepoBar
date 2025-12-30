@@ -26,12 +26,6 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             name: .menuFiltersDidChange,
             object: nil
         )
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(self.menuContentNeedsResize),
-            name: .menuContentNeedsResize,
-            object: nil
-        )
     }
 
     func attachMainMenu(to statusItem: NSStatusItem) {
@@ -51,7 +45,8 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     }
 
     @objc func openAbout() {
-        AppActions.openAbout()
+        self.appState.session.settingsSelectedTab = .about
+        SettingsOpener.shared.open()
     }
 
     @objc func checkForUpdates() {
@@ -67,12 +62,6 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         menu.update()
     }
 
-    @objc func menuContentNeedsResize() {
-        guard let menu = self.mainMenu else { return }
-        guard menu.items.compactMap(\.view).first?.window != nil else { return }
-        self.menuBuilder.refreshMenuViewHeights(in: menu)
-        menu.update()
-    }
 
     @objc func logOut() {
         Task { @MainActor in

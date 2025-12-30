@@ -39,7 +39,7 @@ final class StatusBarMenuBuilder {
             .padding(.horizontal, MenuStyle.headerHorizontalPadding)
             .padding(.top, MenuStyle.headerTopPadding)
             .padding(.bottom, MenuStyle.headerBottomPadding)
-            menu.addItem(self.viewItem(for: header, enabled: true, highlightable: true))
+            menu.addItem(self.viewItem(for: header, enabled: true, highlightable: false))
             menu.addItem(.separator())
         }
 

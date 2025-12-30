@@ -70,4 +70,4 @@ Goal: reduce menu open/close latency; verify via CLI-only profiling (xctrace). W
 
 - [x] Ensure no token/log leakage in signposts.
 - [x] Keep files <500 LOC; split helpers if needed.
-- [ ] Add regression tests if logic changes are non-trivial.
+- [x] Add regression tests if logic changes are non-trivial.

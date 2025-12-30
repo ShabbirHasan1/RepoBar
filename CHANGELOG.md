@@ -38,6 +38,7 @@
 - Menu bar now uses MenuBarExtraAccess with an AppKit NSMenu for native layout while still opening Preferences directly from the menu.
 - Empty repo state now explains active filters and keeps filter controls visible.
 - SwiftUI and app models now use `@Observable`/`@Bindable` for state updates.
+- Account settings no longer repeat the username/host details when already shown in the signed-in header.
 - Menu sort order is now configurable in the menu and saved in Settings.
 - Accounts settings pane now uses grouped styling, labeled fields, and a compact signed-in status block.
 - Settings window height increased; Quit button now uses standard styling.

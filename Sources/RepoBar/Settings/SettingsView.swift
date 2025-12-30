@@ -578,18 +578,6 @@ struct AccountSettingsView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 4) {
-                            GridRow {
-                                Text("Account")
-                                    .foregroundStyle(.secondary)
-                                Text(user.username)
-                            }
-                            GridRow {
-                                Text("Host")
-                                    .foregroundStyle(.secondary)
-                                Text(user.host.host ?? "github.com")
-                            }
-                        }
                         Button("Log out") {
                             Task {
                                 await self.appState.auth.logout()

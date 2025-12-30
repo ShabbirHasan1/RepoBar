@@ -11,6 +11,7 @@ final class StatusBarMenuBuilder {
     private unowned let target: StatusBarMenuManager
     private let signposter = OSSignposter(subsystem: "com.steipete.repobar", category: "menu")
     private var repoMenuItemCache: [String: NSMenuItem] = [:]
+    private var repoSubmenuCache: [String: RepoSubmenuCacheEntry] = [:]
 
     init(appState: AppState, target: StatusBarMenuManager) {
         self.appState = appState
@@ -148,6 +149,7 @@ final class StatusBarMenuBuilder {
                 usedRepoKeys.insert(repo.title)
             }
             self.repoMenuItemCache = self.repoMenuItemCache.filter { usedRepoKeys.contains($0.key) }
+            self.repoSubmenuCache = self.repoSubmenuCache.filter { usedRepoKeys.contains($0.key) }
         }
 
         menu.addItem(self.paddedSeparator())
@@ -474,7 +476,7 @@ final class StatusBarMenuBuilder {
                 target?.openRepoFromMenu(fullName: repo.title)
             }
         )
-        let submenu = self.makeRepoSubmenu(for: repo, isPinned: isPinned)
+        let submenu = self.repoSubmenu(for: repo, isPinned: isPinned)
         if let cached = self.repoMenuItemCache[repo.title], let view = cached.view as? MenuItemHostingView {
             view.updateHighlightableRootView(AnyView(card), showsSubmenuIndicator: true)
             cached.isEnabled = true
@@ -486,6 +488,28 @@ final class StatusBarMenuBuilder {
         let item = self.viewItem(for: card, enabled: true, highlightable: true, submenu: submenu)
         self.repoMenuItemCache[repo.title] = item
         return item
+    }
+
+    private func repoSubmenu(for repo: RepositoryDisplayModel, isPinned: Bool) -> NSMenu {
+        let signature = RepoSubmenuSignature(
+            repo: repo,
+            settings: self.appState.session.settings,
+            heatmapRange: self.appState.session.heatmapRange,
+            recentCounts: RepoRecentCountSignature(
+                releases: self.target.cachedRecentListCount(fullName: repo.title, kind: .releases),
+                discussions: self.target.cachedRecentListCount(fullName: repo.title, kind: .discussions),
+                tags: self.target.cachedRecentListCount(fullName: repo.title, kind: .tags),
+                branches: self.target.cachedRecentListCount(fullName: repo.title, kind: .branches),
+                contributors: self.target.cachedRecentListCount(fullName: repo.title, kind: .contributors)
+            ),
+            isPinned: isPinned
+        )
+        if let cached = self.repoSubmenuCache[repo.title], cached.signature == signature {
+            return cached.menu
+        }
+        let menu = self.makeRepoSubmenu(for: repo, isPinned: isPinned)
+        self.repoSubmenuCache[repo.title] = RepoSubmenuCacheEntry(menu: menu, signature: signature)
+        return menu
     }
 
     private func repoActivityItem(for event: ActivityEvent) -> NSMenuItem {
@@ -759,5 +783,77 @@ struct RepoSignature: Hashable {
         self.localBranch = repo.localStatus?.branch
         self.localSyncState = repo.localStatus?.syncState
         self.localDirtySummary = repo.localStatus?.dirtyCounts?.summary
+    }
+}
+
+struct RepoSubmenuCacheEntry {
+    let menu: NSMenu
+    let signature: RepoSubmenuSignature
+}
+
+struct RepoRecentCountSignature: Hashable {
+    let releases: Int?
+    let discussions: Int?
+    let tags: Int?
+    let branches: Int?
+    let contributors: Int?
+}
+
+struct RepoSubmenuSignature: Hashable {
+    let fullName: String
+    let issues: Int
+    let pulls: Int
+    let ciRunCount: Int?
+    let activityURLPresent: Bool
+    let localPath: String?
+    let localBranch: String?
+    let localSyncState: LocalSyncState?
+    let localDirtySummary: String?
+    let trafficVisitors: Int?
+    let trafficCloners: Int?
+    let heatmapDisplay: HeatmapDisplay
+    let heatmapCount: Int
+    let heatmapRangeStart: TimeInterval
+    let heatmapRangeEnd: TimeInterval
+    let activityDigest: Int
+    let recentCounts: RepoRecentCountSignature
+    let isPinned: Bool
+
+    init(
+        repo: RepositoryDisplayModel,
+        settings: UserSettings,
+        heatmapRange: HeatmapRange,
+        recentCounts: RepoRecentCountSignature,
+        isPinned: Bool
+    ) {
+        self.fullName = repo.title
+        self.issues = repo.issues
+        self.pulls = repo.pulls
+        self.ciRunCount = repo.ciRunCount
+        self.activityURLPresent = repo.activityURL != nil
+        self.localPath = repo.localStatus?.path.path
+        self.localBranch = repo.localStatus?.branch
+        self.localSyncState = repo.localStatus?.syncState
+        self.localDirtySummary = repo.localStatus?.dirtyCounts?.summary
+        self.trafficVisitors = repo.trafficVisitors
+        self.trafficCloners = repo.trafficCloners
+        self.heatmapDisplay = settings.heatmap.display
+        self.heatmapCount = repo.heatmap.count
+        self.heatmapRangeStart = heatmapRange.start.timeIntervalSinceReferenceDate
+        self.heatmapRangeEnd = heatmapRange.end.timeIntervalSinceReferenceDate
+        self.activityDigest = RepoSubmenuSignature.digest(events: repo.activityEvents)
+        self.recentCounts = recentCounts
+        self.isPinned = isPinned
+    }
+
+    private static func digest(events: [ActivityEvent]) -> Int {
+        var hasher = Hasher()
+        events.prefix(10).forEach { event in
+            hasher.combine(event.title)
+            hasher.combine(event.actor)
+            hasher.combine(event.date.timeIntervalSinceReferenceDate)
+            hasher.combine(event.eventType ?? "")
+        }
+        return hasher.finalize()
     }
 }

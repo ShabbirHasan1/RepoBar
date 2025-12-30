@@ -3,7 +3,7 @@ import RepoBarCore
 import SwiftUI
 
 struct WorkflowRunMenuItemView: View {
-    let run: RepoWorkflowRunSummary
+    let model: WorkflowRunMenuRowViewModel
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -15,13 +15,13 @@ struct WorkflowRunMenuItemView: View {
                 .padding(.top, 4)
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.run.name)
+                Text(self.model.name)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(2)
 
                 HStack(spacing: 6) {
-                    if let branch = self.run.branch, branch.isEmpty == false {
+                    if let branch = self.model.branch, branch.isEmpty == false {
                         Text(branch)
                             .font(.caption)
                             .monospaced()
@@ -29,14 +29,14 @@ struct WorkflowRunMenuItemView: View {
                             .lineLimit(1)
                     }
 
-                    if let event = self.run.event, event.isEmpty == false {
+                    if let event = self.model.event, event.isEmpty == false {
                         Text(event)
                             .font(.caption)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             .lineLimit(1)
                     }
 
-                    if let actor = self.run.actorLogin, actor.isEmpty == false {
+                    if let actor = self.model.actorLogin, actor.isEmpty == false {
                         Text(actor)
                             .font(.caption)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
@@ -45,7 +45,7 @@ struct WorkflowRunMenuItemView: View {
 
                     Spacer(minLength: 2)
 
-                    Text(RelativeFormatter.string(from: self.run.updatedAt, relativeTo: Date()))
+                    Text(RelativeFormatter.string(from: self.model.updatedAt, relativeTo: Date()))
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
@@ -55,7 +55,7 @@ struct WorkflowRunMenuItemView: View {
     }
 
     private var statusColor: Color {
-        MenuCIBadge.dotColor(for: self.run.status, isLightAppearance: self.isLightAppearance, isHighlighted: self.isHighlighted)
+        MenuCIBadge.dotColor(for: self.model.status, isLightAppearance: self.isLightAppearance, isHighlighted: self.isHighlighted)
     }
 
     private var isLightAppearance: Bool {

@@ -1,8 +1,7 @@
-import RepoBarCore
 import SwiftUI
 
 struct BranchMenuItemView: View {
-    let branch: RepoBranchSummary
+    let model: BranchMenuRowViewModel
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -14,12 +13,12 @@ struct BranchMenuItemView: View {
         } content: {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
-                    Text(self.branch.name)
+                    Text(self.model.name)
                         .font(.callout.weight(.medium))
                         .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                         .lineLimit(1)
 
-                    if self.branch.isProtected {
+                    if self.model.isProtected {
                         Image(systemName: "lock.fill")
                             .font(.caption2)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
@@ -36,6 +35,6 @@ struct BranchMenuItemView: View {
     }
 
     private var shortSHA: String {
-        String(self.branch.commitSHA.prefix(7))
+        String(self.model.commitSHA.prefix(7))
     }
 }

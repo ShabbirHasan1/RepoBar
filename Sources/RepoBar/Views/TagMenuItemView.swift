@@ -1,8 +1,7 @@
-import RepoBarCore
 import SwiftUI
 
 struct TagMenuItemView: View {
-    let tag: RepoTagSummary
+    let model: TagMenuRowViewModel
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -13,7 +12,7 @@ struct TagMenuItemView: View {
                 .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.tag.name)
+                Text(self.model.name)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(1)
@@ -28,6 +27,6 @@ struct TagMenuItemView: View {
     }
 
     private var shortSHA: String {
-        String(self.tag.commitSHA.prefix(7))
+        String(self.model.commitSHA.prefix(7))
     }
 }

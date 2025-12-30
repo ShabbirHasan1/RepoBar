@@ -1,16 +1,7 @@
-import RepoBarCore
 import SwiftUI
 
 struct LocalWorktreeMenuRowView: View {
-    let path: String
-    let branch: String
-    let isCurrent: Bool
-    let upstream: String?
-    let aheadCount: Int?
-    let behindCount: Int?
-    let lastCommitDate: Date?
-    let lastCommitAuthor: String?
-    let dirtySummary: String?
+    let model: LocalRefMenuRowViewModel
 
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -27,29 +18,31 @@ struct LocalWorktreeMenuRowView: View {
     private var headerRow: some View {
         HStack(alignment: .firstTextBaseline, spacing: MenuStyle.submenuIconSpacing) {
             SubmenuIconColumnView {
-                Image(systemName: self.isCurrent ? "checkmark" : "circle")
+                Image(systemName: self.model.isCurrent ? "checkmark" : "circle")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
             }
 
-            Text(self.path)
+            Text(self.model.title)
                 .font(.system(size: 13))
                 .lineLimit(1)
-                .truncationMode(.middle)
+                .truncationMode(self.model.usesMiddleTruncation ? .middle : .tail)
 
             Spacer(minLength: 8)
 
-            if let dirtySummary, !dirtySummary.isEmpty {
+            if let dirtySummary = self.model.dirtySummary, !dirtySummary.isEmpty {
                 Text("Dirty \(dirtySummary)")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                     .lineLimit(1)
             }
 
-            Text(self.branch)
-                .font(.caption2)
-                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                .lineLimit(1)
+            if let detail = self.model.detail, detail.isEmpty == false {
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .lineLimit(1)
+            }
         }
     }
 
@@ -61,14 +54,14 @@ struct LocalWorktreeMenuRowView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
-                if let upstream {
+                if let upstream = self.model.upstream {
                     Text("Tracking \(upstream)")
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
                 }
 
-                if let commitLine {
+                if let commitLine = self.model.commitLine {
                     Text(commitLine)
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
@@ -78,7 +71,7 @@ struct LocalWorktreeMenuRowView: View {
 
             Spacer(minLength: 8)
 
-            let syncLabel = self.syncLabel
+            let syncLabel = self.model.syncLabel
             if syncLabel.isEmpty == false {
                 Text(syncLabel)
                     .font(.caption2.weight(.semibold))
@@ -86,21 +79,5 @@ struct LocalWorktreeMenuRowView: View {
                     .lineLimit(1)
             }
         }
-    }
-
-    private var syncLabel: String {
-        let ahead = self.aheadCount ?? 0
-        let behind = self.behindCount ?? 0
-        guard ahead > 0 || behind > 0 else { return "" }
-        var parts: [String] = []
-        if ahead > 0 { parts.append("↑\(ahead)") }
-        if behind > 0 { parts.append("↓\(behind)") }
-        return parts.joined(separator: " ")
-    }
-
-    private var commitLine: String? {
-        guard let lastCommitDate, let lastCommitAuthor else { return nil }
-        let when = RelativeFormatter.string(from: lastCommitDate, relativeTo: Date())
-        return "\(lastCommitAuthor) · \(when)"
     }
 }

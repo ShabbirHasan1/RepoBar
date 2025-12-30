@@ -3,7 +3,7 @@ import RepoBarCore
 import SwiftUI
 
 struct CommitMenuItemView: View {
-    let commit: RepoCommitSummary
+    let model: CommitMenuRowViewModel
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -12,7 +12,7 @@ struct CommitMenuItemView: View {
             self.avatar
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.commit.message)
+                Text(self.model.message)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(2)
@@ -31,14 +31,14 @@ struct CommitMenuItemView: View {
                             .lineLimit(1)
                     }
 
-                    if let repo = self.commit.repoFullName, repo.isEmpty == false {
+                    if let repo = self.model.repoFullName, repo.isEmpty == false {
                         Text(repo)
                             .font(.caption2)
                             .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                             .lineLimit(1)
                     }
 
-                    Text(RelativeFormatter.string(from: self.commit.authoredAt, relativeTo: Date()))
+                    Text(RelativeFormatter.string(from: self.model.authoredAt, relativeTo: Date()))
                         .font(.caption2)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
@@ -48,16 +48,16 @@ struct CommitMenuItemView: View {
     }
 
     private var shortSHA: String {
-        String(self.commit.sha.prefix(7))
+        String(self.model.sha.prefix(7))
     }
 
     private var authorLabel: String? {
-        self.commit.authorLogin ?? self.commit.authorName
+        self.model.authorLabel
     }
 
     @ViewBuilder
     private var avatar: some View {
-        if let url = self.commit.authorAvatarURL {
+        if let url = self.model.authorAvatarURL {
             KFImage(url)
                 .placeholder { self.avatarPlaceholder }
                 .resizable()

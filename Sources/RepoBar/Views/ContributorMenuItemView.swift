@@ -1,9 +1,8 @@
 import Kingfisher
-import RepoBarCore
 import SwiftUI
 
 struct ContributorMenuItemView: View {
-    let contributor: RepoContributorSummary
+    let model: ContributorMenuRowViewModel
     let onOpen: () -> Void
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -12,12 +11,12 @@ struct ContributorMenuItemView: View {
             self.avatar
         } content: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(self.contributor.login)
+                Text(self.model.login)
                     .font(.callout.weight(.medium))
                     .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
                     .lineLimit(1)
 
-                Text("\(self.contributor.contributions) contributions")
+                Text("\(self.model.contributions) contributions")
                     .font(.caption)
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                     .lineLimit(1)
@@ -27,7 +26,7 @@ struct ContributorMenuItemView: View {
 
     @ViewBuilder
     private var avatar: some View {
-        if let url = self.contributor.avatarURL {
+        if let url = self.model.avatarURL {
             KFImage(url)
                 .placeholder { self.avatarPlaceholder }
                 .resizable()

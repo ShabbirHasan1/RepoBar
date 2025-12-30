@@ -201,6 +201,10 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         }
         if menu === self.mainMenu {
             self.recentListMenuContexts.removeAll(keepingCapacity: true)
+            if self.appState.session.settings.appearance.showContributionHeader,
+               case let .loggedIn(user) = self.appState.session.account {
+                Task { await self.appState.loadContributionHeatmapIfNeeded(for: user.username) }
+            }
             self.appState.refreshIfNeededForMenu()
             self.menuBuilder.populateMainMenu(menu)
             self.menuBuilder.refreshMenuViewHeights(in: menu)

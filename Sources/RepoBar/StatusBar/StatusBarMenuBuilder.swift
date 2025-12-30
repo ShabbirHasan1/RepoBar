@@ -27,7 +27,10 @@ final class StatusBarMenuBuilder {
         let session = self.appState.session
         let settings = session.settings
 
-        if settings.appearance.showContributionHeader,
+        let hasContributionHeatmap = session.contributionHeatmap.isEmpty == false
+        let shouldShowContributionHeader = settings.appearance.showContributionHeader
+            && (hasContributionHeatmap || session.contributionError == nil)
+        if shouldShowContributionHeader,
            let username = self.currentUsername(),
            let displayName = self.currentDisplayName() {
             let header = ContributionHeaderView(

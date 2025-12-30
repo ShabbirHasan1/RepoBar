@@ -8,7 +8,6 @@ struct ContributionHeaderView: View {
     @Bindable var session: Session
     let appState: AppState
     @State private var isLoading: Bool
-    @State private var failed: Bool
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     init(
@@ -23,10 +22,12 @@ struct ContributionHeaderView: View {
         self.appState = appState
         let hasHeatmap = session.contributionUser == username && !session.contributionHeatmap.isEmpty
         _isLoading = State(initialValue: !hasHeatmap)
-        _failed = State(initialValue: false)
     }
 
     var body: some View {
+        if !self.hasCachedHeatmap, !self.isLoading {
+            EmptyView()
+        } else {
         Button {
             self.openProfile()
         } label: {
@@ -44,13 +45,11 @@ struct ContributionHeaderView: View {
             guard self.session.hasLoadedRepositories else { return }
             let hasHeatmap = self.hasCachedHeatmap
             self.isLoading = !hasHeatmap
-            self.failed = false
             await self.appState.loadContributionHeatmapIfNeeded(for: self.username)
             await MainActor.run {
                 self.isLoading = false
-                let hasData = self.hasCachedHeatmap
-                self.failed = !hasData && self.session.contributionError != nil
             }
+        }
         }
     }
 
@@ -58,7 +57,7 @@ struct ContributionHeaderView: View {
     private var content: some View {
         let filtered = HeatmapFilter.filter(self.session.contributionHeatmap, range: self.session.heatmapRange)
         let hasHeatmap = self.hasCachedHeatmap
-        let showProgress = (self.session.hasLoadedRepositories == false || self.isLoading) && !hasHeatmap && !self.failed
+        let showProgress = (self.session.hasLoadedRepositories == false || self.isLoading) && !hasHeatmap
 
         ZStack {
             VStack(spacing: 4) {
@@ -78,19 +77,6 @@ struct ContributionHeaderView: View {
             if showProgress {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
-            } else if self.failed {
-                VStack(spacing: 6) {
-                    Text(self.session.contributionError ?? "Unable to load contributions right now.")
-                        .font(.caption)
-                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                        .multilineTextAlignment(.center)
-                    Button("Retry") {
-                        self.appState.clearContributionCache()
-                        Task { await self.appState.loadContributionHeatmapIfNeeded(for: self.username) }
-                    }
-                    .buttonStyle(.borderless)
-                }
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .center)
             }
         }
         .frame(maxWidth: .infinity)

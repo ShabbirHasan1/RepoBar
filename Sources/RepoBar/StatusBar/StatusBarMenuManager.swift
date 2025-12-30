@@ -54,11 +54,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         if statusItem.menu == nil {
             self.attachMainMenu(to: statusItem)
         }
-        if let menu = statusItem.menu {
-            statusItem.popUpMenu(menu)
-        } else {
-            sender.performClick(nil)
-        }
+        sender.performClick(nil)
     }
 
     // MARK: - Menu actions

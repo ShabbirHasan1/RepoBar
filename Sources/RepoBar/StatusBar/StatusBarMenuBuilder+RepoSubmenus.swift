@@ -32,13 +32,13 @@ extension StatusBarMenuBuilder {
             menu.addItem(self.viewItem(for: stateView, enabled: true))
             menu.addItem(self.actionItem(
                 title: "Open in Finder",
-                action: #selector(self.target.openLocalFinder),
+                action: #selector(StatusBarMenuManager.openLocalFinder(_:)),
                 represented: local.path,
                 systemImage: "folder"
             ))
             menu.addItem(self.actionItem(
                 title: "Open in Terminal",
-                action: #selector(self.target.openLocalTerminal),
+                action: #selector(StatusBarMenuManager.openLocalTerminal(_:)),
                 represented: local.path,
                 systemImage: "terminal"
             ))

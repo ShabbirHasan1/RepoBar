@@ -214,15 +214,20 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     @objc func openLocalFinder(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
+        self.openLocalFinder(at: url)
+    }
+
+    func openLocalFinder(at url: URL) {
         self.open(url: url)
     }
 
-    func openLocalFinder(_ url: URL) {
-        self.open(url: url)
-    }
 
     @objc func openLocalTerminal(_ sender: NSMenuItem) {
         guard let url = sender.representedObject as? URL else { return }
+        self.openLocalTerminal(at: url)
+    }
+
+    func openLocalTerminal(at url: URL) {
         let preferred = self.appState.session.settings.localProjects.preferredTerminal
         let terminal = TerminalApp.resolve(preferred)
         terminal.open(
@@ -232,15 +237,6 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         )
     }
 
-    func openLocalTerminal(_ url: URL) {
-        let preferred = self.appState.session.settings.localProjects.preferredTerminal
-        let terminal = TerminalApp.resolve(preferred)
-        terminal.open(
-            at: url,
-            rootBookmarkData: self.appState.session.settings.localProjects.rootBookmarkData,
-            ghosttyOpenMode: self.appState.session.settings.localProjects.ghosttyOpenMode
-        )
-    }
 
     func syncLocalRepo(_ status: LocalRepoStatus) {
         self.runLocalGitTask(
@@ -385,7 +381,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                     self.appState.session.settings.localProjects.preferredLocalPathsByFullName[fullName] = destination.path
                     self.appState.persistSettings()
                     self.appState.refreshLocalProjects()
-                    self.openLocalFinder(destination)
+                    self.openLocalFinder(at: destination)
                 case let .failure(error):
                     self.presentAlert(title: "Checkout failed", message: error.userFacingMessage)
                 }

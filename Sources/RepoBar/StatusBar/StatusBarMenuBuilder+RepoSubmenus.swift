@@ -57,6 +57,16 @@ extension StatusBarMenuBuilder {
             menu.addItem(.separator())
         }
 
+        let commitCount = self.target.cachedRecentCommitCount(fullName: repo.title)
+        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
+            title: "Commits",
+            systemImage: "arrow.turn.down.right",
+            fullName: repo.title,
+            kind: .commits,
+            openTitle: "Open Commits",
+            openAction: #selector(self.target.openCommits),
+            badgeText: commitCount.flatMap { $0 > 0 ? StatValueFormatter.compact($0) : nil }
+        )))
         menu.addItem(self.recentListSubmenuItem(RecentListConfig(
             title: "Issues",
             systemImage: "exclamationmark.circle",
@@ -162,10 +172,14 @@ extension StatusBarMenuBuilder {
         }
 
         let events = Array(repo.activityEvents.prefix(10))
-        if events.isEmpty == false {
+        let activityPreview = Array(events.prefix(MenuStyle.globalActivityPreviewLimit))
+        if activityPreview.isEmpty == false {
             menu.addItem(.separator())
             menu.addItem(self.infoItem("Activity"))
-            events.forEach { menu.addItem(self.activityMenuItem(for: $0)) }
+            activityPreview.forEach { menu.addItem(self.activityMenuItem(for: $0)) }
+            if events.count > activityPreview.count {
+                menu.addItem(self.repoActivityMoreMenuItem(events: events))
+            }
         }
 
         let detailItems = self.repoDetailItems(for: repo)
@@ -242,7 +256,8 @@ extension StatusBarMenuBuilder {
         let row = RecentListSubmenuRowView(
             title: "Switch Branch",
             systemImage: "point.topleft.down.curvedto.point.bottomright.up",
-            badgeText: nil
+            badgeText: nil,
+            detailText: local.branch == "detached" ? "Detached" : local.branch
         )
         return self.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
     }
@@ -264,7 +279,8 @@ extension StatusBarMenuBuilder {
         let row = RecentListSubmenuRowView(
             title: "Switch Worktree",
             systemImage: "square.stack.3d.down.right",
-            badgeText: nil
+            badgeText: nil,
+            detailText: local.worktreeName
         )
         return self.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
     }
@@ -329,5 +345,17 @@ extension StatusBarMenuBuilder {
             items.append(self.infoItem("Cloners (14d): \(cloners)"))
         }
         return items
+    }
+
+    private func repoActivityMoreMenuItem(events: [ActivityEvent]) -> NSMenuItem {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        events.forEach { submenu.addItem(self.activityMenuItem(for: $0)) }
+        let item = NSMenuItem(title: "More Activity…", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        if let image = self.cachedSystemImage(named: "ellipsis") {
+            item.image = image
+        }
+        return item
     }
 }

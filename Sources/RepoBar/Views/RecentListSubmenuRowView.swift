@@ -4,6 +4,7 @@ struct RecentListSubmenuRowView: View {
     let title: String
     let systemImage: String
     let badgeText: String?
+    let detailText: String?
     let onOpen: (() -> Void)?
 
     @Environment(\.menuItemHighlighted) private var isHighlighted
@@ -13,11 +14,13 @@ struct RecentListSubmenuRowView: View {
         title: String,
         systemImage: String,
         badgeText: String? = nil,
+        detailText: String? = nil,
         onOpen: (() -> Void)? = nil
     ) {
         self.title = title
         self.systemImage = systemImage
         self.badgeText = badgeText
+        self.detailText = detailText
         self.onOpen = onOpen
     }
 
@@ -46,6 +49,13 @@ struct RecentListSubmenuRowView: View {
                 .lineLimit(1)
 
             Spacer(minLength: 8)
+
+            if let detailText, detailText.isEmpty == false {
+                Text(detailText)
+                    .font(.caption2)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .lineLimit(1)
+            }
 
             if let badgeText {
                 Text(badgeText)

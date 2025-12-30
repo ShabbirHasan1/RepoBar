@@ -19,6 +19,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private var webURLBuilder: RepoWebURLBuilder { RepoWebURLBuilder(host: self.appState.session.settings.githubHost) }
 
     private let recentListLimit = 20
+    private let recentListPreviewLimit = 5
     private let recentListCacheTTL: TimeInterval = 90
     private let recentListLoadTimeout: TimeInterval = 12
     private let issueLabelChipLimit = 6
@@ -26,10 +27,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private let recentPullRequestsCache = RecentListCache<RepoPullRequestSummary>()
     private let recentReleasesCache = RecentListCache<RepoReleaseSummary>()
     private let recentWorkflowRunsCache = RecentListCache<RepoWorkflowRunSummary>()
+    private let recentCommitsCache = RecentListCache<RepoCommitSummary>()
     private let recentDiscussionsCache = RecentListCache<RepoDiscussionSummary>()
     private let recentTagsCache = RecentListCache<RepoTagSummary>()
     private let recentBranchesCache = RecentListCache<RepoBranchSummary>()
     private let recentContributorsCache = RecentListCache<RepoContributorSummary>()
+    private var recentCommitCounts: [String: Int] = [:]
     private var localBranchMenus: [ObjectIdentifier: LocalGitMenuEntry] = [:]
     private var localWorktreeMenus: [ObjectIdentifier: LocalGitMenuEntry] = [:]
     private weak var checkoutProgressWindow: NSWindow?
@@ -180,6 +183,10 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     @objc func openBranches(_ sender: NSMenuItem) {
         self.openRepoPath(sender: sender, path: "branches")
+    }
+
+    @objc func openCommits(_ sender: NSMenuItem) {
+        self.openRepoPath(sender: sender, path: "commits")
     }
 
     @objc func openContributors(_ sender: NSMenuItem) {
@@ -957,6 +964,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     }
 
     private func recentMenuDescriptors() -> [RepoRecentMenuKind: RecentMenuDescriptor] {
+        let commitDescriptor = self.commitDescriptor()
         let releaseActions: (String) -> [RecentMenuAction] = { fullName in
             let hasLatestRelease = self.appState.session.repositories
                 .first(where: { $0.fullName == fullName })?
@@ -975,6 +983,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         }
 
         let descriptors: [RecentMenuDescriptor] = [
+            commitDescriptor,
             self.makeDescriptor(RecentMenuDescriptorConfig(
                 kind: .issues,
                 headerTitle: "Open Issues",
@@ -1158,6 +1167,49 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         return Dictionary(uniqueKeysWithValues: descriptors.map { ($0.kind, $0) })
     }
 
+    private func commitDescriptor() -> RecentMenuDescriptor {
+        let github = self.appState.github
+        return RecentMenuDescriptor(
+            kind: .commits,
+            headerTitle: "Open Commits",
+            headerIcon: "arrow.turn.down.right",
+            openAction: #selector(self.openCommits),
+            emptyTitle: "No commits",
+            actions: { _ in [] },
+            cached: { key, now, ttl in
+                self.recentCommitsCache.cached(for: key, now: now, maxAge: ttl).map(RecentMenuItems.commits)
+            },
+            stale: { key in
+                self.recentCommitsCache.stale(for: key).map(RecentMenuItems.commits)
+            },
+            needsRefresh: { key, now, ttl in
+                self.recentCommitsCache.needsRefresh(for: key, now: now, maxAge: ttl)
+            },
+            load: { key, owner, name, limit in
+                let task = self.recentCommitsCache.task(for: key) {
+                    let list = try await github.recentCommits(owner: owner, name: name, limit: limit)
+                    await MainActor.run {
+                        self.recentCommitCounts[key] = list.totalCount ?? list.items.count
+                    }
+                    return list.items
+                }
+                defer { self.recentCommitsCache.clearInflight(for: key) }
+                let items = try await AsyncTimeout.value(within: self.recentListLoadTimeout, task: task)
+                self.recentCommitsCache.store(items, for: key, fetchedAt: Date())
+                return RecentMenuItems.commits(items)
+            },
+            render: { menu, _, boxed in
+                guard case let .commits(items) = boxed else { return }
+                for commit in items.prefix(self.recentListPreviewLimit) {
+                    self.addCommitMenuItem(commit, to: menu)
+                }
+                if items.count > self.recentListPreviewLimit {
+                    menu.addItem(self.moreCommitsMenuItem(items: items))
+                }
+            }
+        )
+    }
+
     private func filteredPullRequests(_ items: [RepoPullRequestSummary]) -> [RepoPullRequestSummary] {
         var filtered = items
         let scope = self.appState.session.recentPullRequestScope
@@ -1332,7 +1384,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         guard case .loggedIn = self.appState.session.account else { return }
         guard fullNames.isEmpty == false else { return }
 
-        let kinds = Array(self.recentMenuDescriptors().keys)
+        let kinds = self.recentMenuDescriptors().keys.filter { $0 != .commits }
         for fullName in fullNames {
             for kind in kinds {
                 self.prefetchRecentList(fullName: fullName, kind: kind)
@@ -1359,6 +1411,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     }
 
     private enum RecentMenuItems: Sendable {
+        case commits([RepoCommitSummary])
         case issues([RepoIssueSummary])
         case pullRequests([RepoPullRequestSummary])
         case releases([RepoReleaseSummary])
@@ -1370,6 +1423,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
         var isEmpty: Bool {
             switch self {
+            case let .commits(items): items.isEmpty
             case let .issues(items): items.isEmpty
             case let .pullRequests(items): items.isEmpty
             case let .releases(items): items.isEmpty
@@ -1383,6 +1437,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
         var count: Int {
             switch self {
+            case let .commits(items): items.count
             case let .issues(items): items.count
             case let .pullRequests(items): items.count
             case let .releases(items): items.count
@@ -1781,6 +1836,34 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         menu.addItem(item)
     }
 
+    private func addCommitMenuItem(_ commit: RepoCommitSummary, to menu: NSMenu) {
+        let highlightState = MenuItemHighlightState()
+        let view = MenuItemContainerView(highlightState: highlightState, showsSubmenuIndicator: false) {
+            CommitMenuItemView(commit: commit) { [weak self] in
+                self?.open(url: commit.url)
+            }
+        }
+
+        let item = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+        item.isEnabled = true
+        item.view = MenuItemHostingView(rootView: AnyView(view), highlightState: highlightState)
+        let author = commit.authorLogin ?? commit.authorName
+        item.toolTip = self.recentItemTooltip(title: commit.message, author: author, updatedAt: commit.authoredAt)
+        menu.addItem(item)
+    }
+
+    private func moreCommitsMenuItem(items: [RepoCommitSummary]) -> NSMenuItem {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        for commit in items {
+            self.addCommitMenuItem(commit, to: submenu)
+        }
+        let item = NSMenuItem(title: "More Commits…", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        self.applyMenuItemSymbol("ellipsis", to: item)
+        return item
+    }
+
     private func addTagMenuItem(_ tag: RepoTagSummary, repoFullName: String, to menu: NSMenu) {
         let highlightState = MenuItemHighlightState()
         let view = MenuItemContainerView(highlightState: highlightState, showsSubmenuIndicator: false) {
@@ -1938,6 +2021,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     func cachedRecentListCount(fullName: String, kind: RepoRecentMenuKind) -> Int? {
         guard let descriptor = self.recentMenuDescriptor(for: kind) else { return nil }
         return descriptor.stale(fullName)?.count
+    }
+
+    func cachedRecentCommitCount(fullName: String) -> Int? {
+        if let total = self.recentCommitCounts[fullName] { return total }
+        return self.recentCommitsCache.stale(for: fullName)?.count
     }
 }
 

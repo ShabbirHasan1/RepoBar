@@ -42,6 +42,7 @@ extension StatusBarMenuBuilder {
             settings: self.appState.session.settings,
             heatmapRange: self.appState.session.heatmapRange,
             recentCounts: RepoRecentCountSignature(
+                commits: self.target.cachedRecentCommitCount(fullName: repo.title),
                 releases: self.target.cachedRecentListCount(fullName: repo.title, kind: .releases),
                 discussions: self.target.cachedRecentListCount(fullName: repo.title, kind: .discussions),
                 tags: self.target.cachedRecentListCount(fullName: repo.title, kind: .tags),

@@ -312,6 +312,17 @@ struct EventForkee: Decodable {
 
 struct EventCommit: Decodable {
     let sha: String
+    let message: String?
+    let author: EventCommitAuthor?
+    let timestamp: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case sha, message, author, timestamp
+    }
+}
+
+struct EventCommitAuthor: Decodable {
+    let name: String?
 }
 
 extension RepoEvent {
@@ -334,6 +345,32 @@ extension RepoEvent {
             || self.payload.forkee != nil
             || self.payload.head != nil
             || (self.payload.commits?.isEmpty == false)
+    }
+
+    func commitSummaries() -> [RepoCommitSummary] {
+        guard let repo else { return [] }
+        let parts = repo.name.split(separator: "/", maxSplits: 1).map(String.init)
+        guard parts.count == 2 else { return [] }
+        let owner = parts[0]
+        let name = parts[1]
+        let repoURL = URL(string: "https://github.com/\(owner)/\(name)")!
+        let commits = self.payload.commits ?? []
+        return commits.compactMap { commit in
+            let message = commit.message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let title = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+            let date = commit.timestamp ?? self.createdAt
+            let url = repoURL.appending(path: "commit").appending(path: commit.sha)
+            return RepoCommitSummary(
+                sha: commit.sha,
+                message: title.isEmpty ? "Commit" : title,
+                url: url,
+                authoredAt: date,
+                authorName: commit.author?.name,
+                authorLogin: self.actor.login,
+                authorAvatarURL: self.actor.avatarUrl,
+                repoFullName: repo.name
+            )
+        }
     }
 
     func activityEvent(owner: String, name: String) -> ActivityEvent {

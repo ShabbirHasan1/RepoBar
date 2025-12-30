@@ -5,6 +5,7 @@
 ### Added
 - RepoBarCore shared module for GitHub API/auth/models used by the app and CLI.
 - Contribution header submenu with a global activity feed and a quick link to the GitHub profile.
+- Contribution header submenu now shows recent commits above activity with “More…” submenus.
 - Global activity scope setting to switch between all activity and your activity.
 - repobar bundled CLI with login/logout/status and repo listing (activity, issues, PRs, stars), JSON output, and limit flag.
 - repobar CLI now supports `issues` and `pulls` to list the 20 most recently updated open items for a repository.
@@ -51,6 +52,7 @@
 - Accounts settings pane now uses grouped styling, labeled fields, and a compact signed-in status block.
 - Settings window height increased; Quit button now uses standard styling.
 - Repo menu headers now combine CI dot, repository name, and release/time on a single row.
+- Repo submenus now include a Commits list (with total count) above Issues.
 - Repo menu stat row now includes stars and forks for quick popularity context.
 - Repo menu stat row now includes last push age.
 - Repo submenus now list remaining repository details like CI run count and traffic stats when available.

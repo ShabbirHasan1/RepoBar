@@ -14,6 +14,7 @@ struct MenuBuildSignature: Hashable {
     let lastError: String?
     let contribution: ContributionSignature
     let globalActivity: ActivitySignature
+    let globalCommits: CommitSignature
     let heatmapRangeStart: TimeInterval
     let heatmapRangeEnd: TimeInterval
     let reposDigest: Int
@@ -95,6 +96,18 @@ struct ActivitySignature: Hashable {
     }
 }
 
+struct CommitSignature: Hashable {
+    let count: Int
+    let latestDate: Date?
+    let error: String?
+
+    init(commits: [RepoCommitSummary], error: String?) {
+        self.count = commits.count
+        self.latestDate = commits.first?.authoredAt
+        self.error = error
+    }
+}
+
 struct RepoSignature: Hashable {
     let fullName: String
     let ciStatus: CIStatus
@@ -161,6 +174,7 @@ struct RepoSubmenuCacheEntry {
 }
 
 struct RepoRecentCountSignature: Hashable {
+    let commits: Int?
     let releases: Int?
     let discussions: Int?
     let tags: Int?

@@ -1,6 +1,7 @@
 import Foundation
 
 enum RepoRecentMenuKind: Hashable {
+    case commits
     case issues
     case pullRequests
     case releases

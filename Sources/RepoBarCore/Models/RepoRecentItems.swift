@@ -225,6 +225,47 @@ public struct RepoContributorSummary: Sendable, Hashable {
     }
 }
 
+public struct RepoCommitSummary: Sendable, Hashable {
+    public let sha: String
+    public let message: String
+    public let url: URL
+    public let authoredAt: Date
+    public let authorName: String?
+    public let authorLogin: String?
+    public let authorAvatarURL: URL?
+    public let repoFullName: String?
+
+    public init(
+        sha: String,
+        message: String,
+        url: URL,
+        authoredAt: Date,
+        authorName: String?,
+        authorLogin: String?,
+        authorAvatarURL: URL?,
+        repoFullName: String? = nil
+    ) {
+        self.sha = sha
+        self.message = message
+        self.url = url
+        self.authoredAt = authoredAt
+        self.authorName = authorName
+        self.authorLogin = authorLogin
+        self.authorAvatarURL = authorAvatarURL
+        self.repoFullName = repoFullName
+    }
+}
+
+public struct RepoCommitList: Sendable, Hashable {
+    public let items: [RepoCommitSummary]
+    public let totalCount: Int?
+
+    public init(items: [RepoCommitSummary], totalCount: Int?) {
+        self.items = items
+        self.totalCount = totalCount
+    }
+}
+
 public struct RepoReleaseAssetSummary: Sendable, Hashable {
     public let name: String
     public let sizeBytes: Int?

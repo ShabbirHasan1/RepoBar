@@ -17,25 +17,52 @@ extension StatusBarMenuBuilder {
             ))
         }
 
-        if let error = self.appState.session.globalActivityError {
+        let commitEvents = self.appState.session.globalCommitEvents
+        let activityEvents = self.appState.session.globalActivityEvents
+        let commitPreview = Array(commitEvents.prefix(MenuStyle.globalCommitPreviewLimit))
+        let activityPreview = Array(activityEvents.prefix(MenuStyle.globalActivityPreviewLimit))
+
+        if commitPreview.isEmpty == false {
+            menu.addItem(.separator())
+            menu.addItem(self.infoItem("Commits"))
+            commitPreview.forEach { menu.addItem(self.commitMenuItem(for: $0)) }
+            if commitEvents.count > commitPreview.count {
+                menu.addItem(self.moreCommitsMenuItem(commits: commitEvents))
+            }
+        } else if let error = self.appState.session.globalCommitError {
+            menu.addItem(.separator())
             menu.addItem(self.infoMessageItem(error))
-            return menu
         }
 
-        let events = Array(self.appState.session.globalActivityEvents.prefix(MenuStyle.globalActivityLimit))
-        if events.isEmpty {
+        if activityPreview.isEmpty == false {
+            menu.addItem(.separator())
+            menu.addItem(self.infoItem("Activity"))
+            activityPreview.forEach { menu.addItem(self.activityMenuItem(for: $0)) }
+            if activityEvents.count > activityPreview.count {
+                menu.addItem(self.moreActivityMenuItem(events: activityEvents))
+            }
+        } else if let error = self.appState.session.globalActivityError {
+            menu.addItem(.separator())
+            menu.addItem(self.infoMessageItem(error))
+        } else if commitPreview.isEmpty {
             let title = self.appState.session.hasLoadedRepositories ? "No recent activity" : "Loading…"
+            menu.addItem(.separator())
             menu.addItem(self.infoItem(title))
-            return menu
         }
 
-        events.forEach { menu.addItem(self.activityMenuItem(for: $0)) }
         return menu
     }
 
     func activityMenuItem(for event: ActivityEvent) -> NSMenuItem {
         let view = ActivityMenuItemView(event: event, symbolName: self.activitySymbolName(for: event)) { [weak target] in
             target?.open(url: event.url)
+        }
+        return self.viewItem(for: view, enabled: true, highlightable: true)
+    }
+
+    func commitMenuItem(for commit: RepoCommitSummary) -> NSMenuItem {
+        let view = CommitMenuItemView(commit: commit) { [weak target] in
+            target?.open(url: commit.url)
         }
         return self.viewItem(for: view, enabled: true, highlightable: true)
     }
@@ -62,6 +89,30 @@ extension StatusBarMenuBuilder {
         case .discussion: return "bubble.left.and.bubble.right"
         case .sponsorship: return "heart"
         }
+    }
+
+    private func moreCommitsMenuItem(commits: [RepoCommitSummary]) -> NSMenuItem {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        commits.forEach { submenu.addItem(self.commitMenuItem(for: $0)) }
+        let item = NSMenuItem(title: "More Commits…", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        if let image = self.cachedSystemImage(named: "ellipsis") {
+            item.image = image
+        }
+        return item
+    }
+
+    private func moreActivityMenuItem(events: [ActivityEvent]) -> NSMenuItem {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        events.forEach { submenu.addItem(self.activityMenuItem(for: $0)) }
+        let item = NSMenuItem(title: "More Activity…", action: nil, keyEquivalent: "")
+        item.submenu = submenu
+        if let image = self.cachedSystemImage(named: "ellipsis") {
+            item.image = image
+        }
+        return item
     }
 
     private func profileURL(for username: String) -> URL? {

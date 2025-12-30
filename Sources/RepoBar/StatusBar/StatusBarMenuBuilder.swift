@@ -46,6 +46,10 @@ final class StatusBarMenuBuilder {
                 events: session.globalActivityEvents,
                 error: session.globalActivityError
             ),
+            globalCommits: CommitSignature(
+                commits: session.globalCommitEvents,
+                error: session.globalCommitError
+            ),
             heatmapRangeStart: session.heatmapRange.start.timeIntervalSinceReferenceDate,
             heatmapRangeEnd: session.heatmapRange.end.timeIntervalSinceReferenceDate,
             reposDigest: RepoSignature.digest(for: repos),

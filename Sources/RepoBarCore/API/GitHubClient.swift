@@ -116,6 +116,26 @@ public actor GitHubClient {
         return Array(mapped.prefix(max(limit, 0)))
     }
 
+    public func userCommitEvents(
+        username: String,
+        scope: GlobalActivityScope,
+        limit: Int
+    ) async throws -> [RepoCommitSummary] {
+        let token = try await validAccessToken()
+        let path = scope == .allActivity
+            ? "/users/\(username)/received_events"
+            : "/users/\(username)/events"
+        var components = URLComponents(
+            url: self.apiHost.appending(path: path),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "per_page", value: "30")]
+        let (data, _) = try await authorizedGet(url: components.url!, token: token)
+        let events = try jsonDecoder.decode([RepoEvent].self, from: data)
+        let commits = events.flatMap { $0.commitSummaries() }
+        return Array(commits.prefix(max(limit, 0)))
+    }
+
     /// Latest release (including prereleases). Returns `nil` if the repo has no releases.
     public func latestRelease(owner: String, name: String) async throws -> Release? {
         do {
@@ -767,6 +787,21 @@ public actor GitHubClient {
         return pulls.count
     }
 
+    private func commitTotalCount(owner: String, name: String) async throws -> Int? {
+        let token = try await validAccessToken()
+        var components = URLComponents(
+            url: apiHost.appending(path: "/repos/\(owner)/\(name)/commits"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "per_page", value: "1")]
+        let (data, response) = try await authorizedGet(url: components.url!, token: token)
+        if let link = response.value(forHTTPHeaderField: "Link"), let last = Self.lastPage(from: link) {
+            return last
+        }
+        let items = try jsonDecoder.decode([CommitRecentResponse].self, from: data)
+        return items.count
+    }
+
     // MARK: - Recent PRs & issues (repo submenus)
 
     private func recentList<T>(
@@ -838,6 +873,20 @@ public actor GitHubClient {
             limit: limit,
             decode: Self.decodeRecentWorkflowRuns(from:)
         )
+    }
+
+    public func recentCommits(owner: String, name: String, limit: Int = 20) async throws -> RepoCommitList {
+        let token = try await validAccessToken()
+        let limit = max(1, min(limit, 100))
+        var components = URLComponents(
+            url: apiHost.appending(path: "/repos/\(owner)/\(name)/commits"),
+            resolvingAgainstBaseURL: false
+        )!
+        components.queryItems = [URLQueryItem(name: "per_page", value: "\(limit)")]
+        let (data, _) = try await authorizedGet(url: components.url!, token: token)
+        let items = try Self.decodeRecentCommits(from: data)
+        let totalCount = try await self.commitTotalCount(owner: owner, name: name)
+        return RepoCommitList(items: items, totalCount: totalCount)
     }
 
     public func recentDiscussions(owner: String, name: String, limit: Int = 20) async throws -> [RepoDiscussionSummary] {
@@ -1037,6 +1086,26 @@ public actor GitHubClient {
         }
     }
 
+    static func decodeRecentCommits(from data: Data) throws -> [RepoCommitSummary] {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let responses = try decoder.decode([CommitRecentResponse].self, from: data)
+        return responses.compactMap { response in
+            guard let url = response.htmlUrl else { return nil }
+            let message = response.commit.message.trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = message.split(whereSeparator: \.isNewline).first.map(String.init) ?? message
+            return RepoCommitSummary(
+                sha: response.sha,
+                message: title,
+                url: url,
+                authoredAt: response.commit.author.date,
+                authorName: response.commit.author.name,
+                authorLogin: response.author?.login,
+                authorAvatarURL: response.author?.avatarUrl
+            )
+        }
+    }
+
     static func decodeContributors(from data: Data) throws -> [RepoContributorSummary] {
         let decoder = JSONDecoder()
         let responses = try decoder.decode([ContributorResponse].self, from: data)
@@ -1196,6 +1265,30 @@ public actor GitHubClient {
 
         struct TagCommit: Decodable {
             let sha: String
+        }
+    }
+
+    private struct CommitRecentResponse: Decodable {
+        let sha: String
+        let htmlUrl: URL?
+        let commit: CommitDetail
+        let author: RecentUser?
+
+        enum CodingKeys: String, CodingKey {
+            case sha
+            case htmlUrl = "html_url"
+            case commit
+            case author
+        }
+
+        struct CommitDetail: Decodable {
+            let message: String
+            let author: CommitAuthor
+        }
+
+        struct CommitAuthor: Decodable {
+            let name: String?
+            let date: Date
         }
     }
 

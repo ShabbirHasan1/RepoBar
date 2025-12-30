@@ -225,6 +225,8 @@ final class AppState {
                     self.session.localProjectsScanInProgress = false
                     self.session.globalActivityEvents = []
                     self.session.globalActivityError = nil
+                    self.session.globalCommitEvents = []
+                    self.session.globalCommitError = nil
                 }
                 return
             }
@@ -265,7 +267,7 @@ final class AppState {
             }()
             let globalActivityTask = Task { [weak self] in
                 guard let self, let activityUsername else {
-                    return GlobalActivityResult(events: [], error: nil)
+                    return GlobalActivityResult(events: [], commits: [], error: nil, commitError: nil)
                 }
                 return await self.fetchGlobalActivityEvents(
                     username: activityUsername,
@@ -282,6 +284,8 @@ final class AppState {
                 self.session.localProjectsScanInProgress = false
                 self.session.globalActivityEvents = globalActivity.events
                 self.session.globalActivityError = globalActivity.error
+                self.session.globalCommitEvents = globalActivity.commits
+                self.session.globalCommitError = globalActivity.commitError
             }
             await self.updateMenuDisplayIndex(now: now)
             self.prefetchMenuTargets(from: final, visibleCount: targets.count, token: self.refreshTaskToken)
@@ -346,7 +350,9 @@ final class AppState {
 
     private struct GlobalActivityResult {
         let events: [ActivityEvent]
+        let commits: [RepoCommitSummary]
         let error: String?
+        let commitError: String?
     }
 
     private func fetchGlobalActivityEvents(
@@ -355,30 +361,61 @@ final class AppState {
         repos: [Repository]
     ) async -> GlobalActivityResult {
         let repoEvents = repos.flatMap(\.activityEvents)
-        do {
-            let userEvents = try await self.github.userActivityEvents(
+        async let activityResult: Result<[ActivityEvent], Error> = self.capture {
+            try await self.github.userActivityEvents(
                 username: username,
                 scope: scope,
                 limit: MenuStyle.globalActivityLimit
             )
-            let merged = self.mergeGlobalActivityEvents(
-                userEvents: userEvents,
-                repoEvents: repoEvents,
-                scope: scope,
-                username: username,
-                limit: MenuStyle.globalActivityLimit
-            )
-            return GlobalActivityResult(events: merged, error: nil)
-        } catch {
-            let merged = self.mergeGlobalActivityEvents(
-                userEvents: [],
-                repoEvents: repoEvents,
-                scope: scope,
-                username: username,
-                limit: MenuStyle.globalActivityLimit
-            )
-            return GlobalActivityResult(events: merged, error: error.userFacingMessage)
         }
+        async let commitResult: Result<[RepoCommitSummary], Error> = self.capture {
+            try await self.github.userCommitEvents(
+                username: username,
+                scope: scope,
+                limit: MenuStyle.globalCommitLimit
+            )
+        }
+
+        let activityEvents: [ActivityEvent]
+        let activityError: String?
+        switch await activityResult {
+        case let .success(events):
+            activityEvents = events
+            activityError = nil
+        case let .failure(error):
+            activityEvents = []
+            activityError = error.userFacingMessage
+        }
+
+        let commitEvents: [RepoCommitSummary]
+        let commitError: String?
+        switch await commitResult {
+        case let .success(commits):
+            commitEvents = commits
+            commitError = nil
+        case let .failure(error):
+            commitEvents = []
+            commitError = error.userFacingMessage
+        }
+
+        let merged = self.mergeGlobalActivityEvents(
+            userEvents: activityEvents,
+            repoEvents: repoEvents,
+            scope: scope,
+            username: username,
+            limit: MenuStyle.globalActivityLimit
+        )
+
+        return GlobalActivityResult(
+            events: merged,
+            commits: commitEvents,
+            error: activityError,
+            commitError: commitError
+        )
+    }
+
+    private func capture<T>(_ work: @escaping () async throws -> T) async -> Result<T, Error> {
+        do { return try await .success(work()) } catch { return .failure(error) }
     }
 
     private func mergeGlobalActivityEvents(
@@ -717,6 +754,8 @@ final class Session {
     var contributionError: String?
     var globalActivityEvents: [ActivityEvent] = []
     var globalActivityError: String?
+    var globalCommitEvents: [RepoCommitSummary] = []
+    var globalCommitError: String?
     var heatmapRange: HeatmapRange = HeatmapFilter.range(span: .twelveMonths, now: Date(), alignToWeek: true)
     var menuRepoSelection: MenuRepoSelection = .all
     var recentIssueScope: RecentIssueScope = .all

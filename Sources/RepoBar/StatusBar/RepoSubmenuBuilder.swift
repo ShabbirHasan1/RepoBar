@@ -20,7 +20,7 @@ struct RepoSubmenuBuilder {
         let settings = self.appState.session.settings
 
         let openRow = RecentListSubmenuRowView(
-            title: "Open \(repo.title)",
+            title: "Open \(repo.title) in GitHub",
             systemImage: "folder",
             badgeText: nil,
             onOpen: { [weak target] in

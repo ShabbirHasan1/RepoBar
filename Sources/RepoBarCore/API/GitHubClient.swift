@@ -722,114 +722,119 @@ public actor GitHubClient {
 
     // MARK: - Recent PRs & issues (repo submenus)
 
-    public func recentPullRequests(owner: String, name: String, limit: Int = 20) async throws -> [RepoPullRequestSummary] {
+    private func recentList<T>(
+        owner: String,
+        name: String,
+        path: String,
+        limit: Int,
+        queryItems: [URLQueryItem] = [],
+        decode: (Data) throws -> [T]
+    ) async throws -> [T] {
         let token = try await validAccessToken()
         let limit = max(1, min(limit, 100))
         var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/pulls"),
+            url: apiHost.appending(path: "/repos/\(owner)/\(name)/\(path)"),
             resolvingAgainstBaseURL: false
         )!
-        components.queryItems = [
-            URLQueryItem(name: "state", value: "open"),
-            URLQueryItem(name: "sort", value: "updated"),
-            URLQueryItem(name: "direction", value: "desc"),
-            URLQueryItem(name: "per_page", value: "\(limit)")
-        ]
+        var items = queryItems.filter { $0.name != "per_page" }
+        items.append(URLQueryItem(name: "per_page", value: "\(limit)"))
+        components.queryItems = items
         let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeRecentPullRequests(from: data)
+        return try decode(data)
+    }
+
+    public func recentPullRequests(owner: String, name: String, limit: Int = 20) async throws -> [RepoPullRequestSummary] {
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "pulls",
+            limit: limit,
+            queryItems: [
+                URLQueryItem(name: "state", value: "open"),
+                URLQueryItem(name: "sort", value: "updated"),
+                URLQueryItem(name: "direction", value: "desc")
+            ],
+            decode: Self.decodeRecentPullRequests(from:)
+        )
     }
 
     public func recentIssues(owner: String, name: String, limit: Int = 20) async throws -> [RepoIssueSummary] {
-        let token = try await validAccessToken()
-        let limit = max(1, min(limit, 100))
-        var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/issues"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [
-            URLQueryItem(name: "state", value: "open"),
-            URLQueryItem(name: "sort", value: "updated"),
-            URLQueryItem(name: "direction", value: "desc"),
-            URLQueryItem(name: "per_page", value: "\(limit)")
-        ]
-        let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeRecentIssues(from: data)
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "issues",
+            limit: limit,
+            queryItems: [
+                URLQueryItem(name: "state", value: "open"),
+                URLQueryItem(name: "sort", value: "updated"),
+                URLQueryItem(name: "direction", value: "desc")
+            ],
+            decode: Self.decodeRecentIssues(from:)
+        )
     }
 
     public func recentReleases(owner: String, name: String, limit: Int = 20) async throws -> [RepoReleaseSummary] {
-        let token = try await validAccessToken()
-        let limit = max(1, min(limit, 100))
-        var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/releases"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "per_page", value: "\(limit)")]
-        let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeRecentReleases(from: data)
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "releases",
+            limit: limit,
+            decode: Self.decodeRecentReleases(from:)
+        )
     }
 
     public func recentWorkflowRuns(owner: String, name: String, limit: Int = 20) async throws -> [RepoWorkflowRunSummary] {
-        let token = try await validAccessToken()
-        let limit = max(1, min(limit, 100))
-        var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/actions/runs"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "per_page", value: "\(limit)")]
-        let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeRecentWorkflowRuns(from: data)
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "actions/runs",
+            limit: limit,
+            decode: Self.decodeRecentWorkflowRuns(from:)
+        )
     }
 
     public func recentDiscussions(owner: String, name: String, limit: Int = 20) async throws -> [RepoDiscussionSummary] {
-        let token = try await validAccessToken()
-        let limit = max(1, min(limit, 100))
-        var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/discussions"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [
-            URLQueryItem(name: "per_page", value: "\(limit)"),
-            URLQueryItem(name: "sort", value: "updated"),
-            URLQueryItem(name: "direction", value: "desc")
-        ]
-        let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeRecentDiscussions(from: data)
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "discussions",
+            limit: limit,
+            queryItems: [
+                URLQueryItem(name: "sort", value: "updated"),
+                URLQueryItem(name: "direction", value: "desc")
+            ],
+            decode: Self.decodeRecentDiscussions(from:)
+        )
     }
 
     public func recentTags(owner: String, name: String, limit: Int = 20) async throws -> [RepoTagSummary] {
-        let token = try await validAccessToken()
-        let limit = max(1, min(limit, 100))
-        var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/tags"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "per_page", value: "\(limit)")]
-        let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeRecentTags(from: data)
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "tags",
+            limit: limit,
+            decode: Self.decodeRecentTags(from:)
+        )
     }
 
     public func recentBranches(owner: String, name: String, limit: Int = 20) async throws -> [RepoBranchSummary] {
-        let token = try await validAccessToken()
-        let limit = max(1, min(limit, 100))
-        var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/branches"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "per_page", value: "\(limit)")]
-        let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeRecentBranches(from: data)
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "branches",
+            limit: limit,
+            decode: Self.decodeRecentBranches(from:)
+        )
     }
 
     public func topContributors(owner: String, name: String, limit: Int = 20) async throws -> [RepoContributorSummary] {
-        let token = try await validAccessToken()
-        let limit = max(1, min(limit, 100))
-        var components = URLComponents(
-            url: apiHost.appending(path: "/repos/\(owner)/\(name)/contributors"),
-            resolvingAgainstBaseURL: false
-        )!
-        components.queryItems = [URLQueryItem(name: "per_page", value: "\(limit)")]
-        let (data, _) = try await authorizedGet(url: components.url!, token: token)
-        return try Self.decodeContributors(from: data)
+        try await recentList(
+            owner: owner,
+            name: name,
+            path: "contributors",
+            limit: limit,
+            decode: Self.decodeContributors(from:)
+        )
     }
 
     /// Most recent release (including prereleases) ordered by creation date; skips drafts.

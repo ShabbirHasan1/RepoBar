@@ -156,5 +156,5 @@ Last updated: 2025-12-28
 - [x] Create a `RecentMenuDescriptor` table to drive submenu config, caching, fetching, and row rendering (remove per-kind switch blocks).
 - [x] Extract a shared SwiftUI row layout for recent submenu items (issues/PRs/releases/CI/discussions/tags/branches/contributors/assets).
 - [x] Add a GitHubClient helper for recent-list REST calls + decoding to reduce endpoint boilerplate.
-- [ ] Centralize repo web URL building (actions/discussions/tags/branches/contributors/releases/assets).
+- [x] Centralize repo web URL building (actions/discussions/tags/branches/contributors/releases/assets).
 - [ ] Reuse a single list-submenu builder for releases + release assets + recent list menus.

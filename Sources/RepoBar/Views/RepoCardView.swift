@@ -38,7 +38,7 @@ struct RepoCardView: View {
     }
 
     private func repoURL() -> URL {
-        URL(string: "https://github.com/\(self.repo.title)")!
+        self.webURLBuilder.repoURL(fullName: self.repo.title) ?? self.session.settings.githubHost
     }
 
     private func open(url: URL) {
@@ -250,15 +250,19 @@ struct RepoCardView: View {
     }
 
     private func issuesURL() -> URL {
-        URL(string: "https://github.com/\(self.repo.title)/issues")!
+        self.webURLBuilder.issuesURL(fullName: self.repo.title) ?? self.repoURL().appendingPathComponent("issues")
     }
 
     private func pullsURL() -> URL {
-        URL(string: "https://github.com/\(self.repo.title)/pulls")!
+        self.webURLBuilder.pullsURL(fullName: self.repo.title) ?? self.repoURL().appendingPathComponent("pulls")
     }
 
     private func actionsURL() -> URL {
-        URL(string: "https://github.com/\(self.repo.title)/actions")!
+        self.webURLBuilder.actionsURL(fullName: self.repo.title) ?? self.repoURL().appendingPathComponent("actions")
+    }
+
+    private var webURLBuilder: RepoWebURLBuilder {
+        RepoWebURLBuilder(host: self.session.settings.githubHost)
     }
 
     private func openTerminal(at url: URL) {

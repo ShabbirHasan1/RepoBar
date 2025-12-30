@@ -11,6 +11,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private var recentListMenuContexts: [ObjectIdentifier: RepoRecentMenuContext] = [:]
     private weak var menuResizeWindow: NSWindow?
     private var lastMainMenuWidth: CGFloat?
+    private var webURLBuilder: RepoWebURLBuilder { RepoWebURLBuilder(host: self.appState.session.settings.githubHost) }
 
     private let recentListLimit = 20
     private let recentListCacheTTL: TimeInterval = 90
@@ -87,12 +88,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     @objc func openRepo(_ sender: NSMenuItem) {
         guard let fullName = self.repoFullName(from: sender),
-              let url = self.repoURL(for: fullName) else { return }
+              let url = self.webURLBuilder.repoURL(fullName: fullName) else { return }
         self.open(url: url)
     }
 
     func openRepoFromMenu(fullName: String) {
-        guard let url = self.repoURL(for: fullName) else { return }
+        guard let url = self.webURLBuilder.repoURL(fullName: fullName) else { return }
         self.open(url: url)
     }
 
@@ -175,7 +176,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     @objc func copyRepoURL(_ sender: NSMenuItem) {
         guard let fullName = self.repoFullName(from: sender),
-              let url = self.repoURL(for: fullName) else { return }
+              let url = self.webURLBuilder.repoURL(fullName: fullName) else { return }
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(url.absoluteString, forType: .string)
@@ -861,7 +862,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let highlightState = MenuItemHighlightState()
         let view = MenuItemContainerView(highlightState: highlightState, showsSubmenuIndicator: false) {
             TagMenuItemView(tag: tag) { [weak self] in
-                guard let self, let url = self.tagURL(repoFullName: repoFullName, tag: tag.name) else { return }
+                guard let self, let url = self.webURLBuilder.tagURL(fullName: repoFullName, tag: tag.name) else { return }
                 self.open(url: url)
             }
         }
@@ -877,7 +878,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         let highlightState = MenuItemHighlightState()
         let view = MenuItemContainerView(highlightState: highlightState, showsSubmenuIndicator: false) {
             BranchMenuItemView(branch: branch) { [weak self] in
-                guard let self, let url = self.branchURL(repoFullName: repoFullName, branch: branch.name) else { return }
+                guard let self, let url = self.webURLBuilder.branchURL(fullName: repoFullName, branch: branch.name) else { return }
                 self.open(url: url)
             }
         }
@@ -959,29 +960,6 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         sender.representedObject as? String
     }
 
-    private func repoURL(for fullName: String) -> URL? {
-        let parts = fullName.split(separator: "/", maxSplits: 1)
-        guard parts.count == 2 else { return nil }
-        var url = self.appState.session.settings.githubHost
-        url.appendPathComponent(String(parts[0]))
-        url.appendPathComponent(String(parts[1]))
-        return url
-    }
-
-    private func tagURL(repoFullName: String, tag: String) -> URL? {
-        guard var url = self.repoURL(for: repoFullName) else { return nil }
-        url.appendPathComponent("tree")
-        url.appendPathComponent(tag)
-        return url
-    }
-
-    private func branchURL(repoFullName: String, branch: String) -> URL? {
-        guard var url = self.repoURL(for: repoFullName) else { return nil }
-        url.appendPathComponent("tree")
-        url.appendPathComponent(branch)
-        return url
-    }
-
     private func ownerAndName(from fullName: String) -> (String, String)? {
         let parts = fullName.split(separator: "/", maxSplits: 1)
         guard parts.count == 2 else { return nil }
@@ -990,8 +968,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     private func openRepoPath(sender: NSMenuItem, path: String) {
         guard let fullName = self.repoFullName(from: sender),
-              var url = self.repoURL(for: fullName) else { return }
-        url.appendPathComponent(path)
+              let url = self.webURLBuilder.repoPathURL(fullName: fullName, path: path) else { return }
         self.open(url: url)
     }
 

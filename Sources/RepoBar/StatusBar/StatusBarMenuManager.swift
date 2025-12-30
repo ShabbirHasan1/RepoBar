@@ -9,7 +9,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private var mainMenu: NSMenu?
     private weak var statusItem: NSStatusItem?
     private lazy var menuBuilder = StatusBarMenuBuilder(appState: self.appState, target: self)
-    private var recentListMenuContexts: [ObjectIdentifier: RepoRecentMenuContext] = [:]
+    private var recentListMenus: [ObjectIdentifier: RecentListMenuEntry] = [:]
     private weak var menuResizeWindow: NSWindow?
     private var lastMainMenuWidth: CGFloat?
     private var webURLBuilder: RepoWebURLBuilder { RepoWebURLBuilder(host: self.appState.session.settings.githubHost) }
@@ -32,6 +32,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             self,
             selector: #selector(self.menuFiltersChanged),
             name: .menuFiltersDidChange,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.recentListFiltersChanged),
+            name: .recentListFiltersDidChange,
             object: nil
         )
     }
@@ -78,11 +84,21 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     @objc func menuFiltersChanged() {
         guard let menu = self.mainMenu else { return }
-        self.recentListMenuContexts.removeAll(keepingCapacity: true)
+        self.recentListMenus.removeAll(keepingCapacity: true)
         self.appState.persistSettings()
         self.menuBuilder.populateMainMenu(menu)
         self.menuBuilder.refreshMenuViewHeights(in: menu)
         menu.update()
+    }
+
+    @objc private func recentListFiltersChanged() {
+        self.pruneRecentListMenus()
+        for entry in self.recentListMenus.values {
+            guard entry.context.kind == .pullRequests, let menu = entry.menu else { continue }
+            Task { @MainActor [weak self] in
+                await self?.refreshRecentListMenu(menu: menu, context: entry.context)
+            }
+        }
     }
 
     @objc func logOut() {
@@ -235,14 +251,15 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         menu.appearance = NSApp.effectiveAppearance
-        if let context = self.recentListMenuContexts[ObjectIdentifier(menu)] {
+        if let entry = self.recentListMenus[ObjectIdentifier(menu)] {
+            let context = entry.context
             Task { @MainActor [weak self] in
                 await self?.refreshRecentListMenu(menu: menu, context: context)
             }
             return
         }
         if menu === self.mainMenu {
-            self.recentListMenuContexts.removeAll(keepingCapacity: true)
+            self.recentListMenus.removeAll(keepingCapacity: true)
             if self.appState.session.settings.appearance.showContributionHeader {
                 if case let .loggedIn(user) = self.appState.session.account {
                     Task { await self.appState.loadContributionHeatmapIfNeeded(for: user.username) }
@@ -283,6 +300,10 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             self.menuBuilder.clearHighlights(in: menu)
             self.stopObservingMenuResize()
         }
+    }
+
+    private func pruneRecentListMenus() {
+        self.recentListMenus = self.recentListMenus.filter { $0.value.menu != nil }
     }
 
     func menu(_ menu: NSMenu, willHighlight item: NSMenuItem?) {
@@ -381,7 +402,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                     try await github.recentPullRequests(owner: owner, name: name, limit: limit)
                 },
                 render: { menu, _, items in
-                    for pr in items.prefix(self.recentListLimit) {
+                    let filtered = self.filteredPullRequests(items)
+                    if filtered.isEmpty {
+                        self.addEmptyListItem("No matching pull requests", to: menu)
+                        return
+                    }
+                    for pr in filtered.prefix(self.recentListLimit) {
                         self.addPullRequestMenuItem(pr, to: menu)
                     }
                 }
@@ -517,6 +543,29 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         return Dictionary(uniqueKeysWithValues: descriptors.map { ($0.kind, $0) })
     }
 
+    private func filteredPullRequests(_ items: [RepoPullRequestSummary]) -> [RepoPullRequestSummary] {
+        var filtered = items
+        let scope = self.appState.session.recentPullRequestScope
+        if scope == .mine {
+            guard case let .loggedIn(user) = self.appState.session.account else { return [] }
+            filtered = filtered.filter { pullRequest in
+                guard let author = pullRequest.authorLogin else { return false }
+                return author.caseInsensitiveCompare(user.username) == .orderedSame
+            }
+        }
+
+        switch self.appState.session.recentPullRequestEngagement {
+        case .all:
+            break
+        case .commented:
+            filtered = filtered.filter { $0.commentCount > 0 }
+        case .reviewed:
+            filtered = filtered.filter { $0.reviewCommentCount > 0 }
+        }
+
+        return filtered
+    }
+
     private func makeDescriptor(
         _ config: RecentMenuDescriptorConfig<some Sendable>,
         actions: @escaping (String) -> [RecentMenuAction] = { _ in [] }
@@ -585,6 +634,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             systemImage: descriptor.headerIcon
         )
         let actions = descriptor.actions(context.fullName)
+        let extras = self.pullRequestFilterMenuItems(for: context)
         let cached = descriptor.cached(context.fullName, now, self.recentListCacheTTL)
         let stale = cached ?? descriptor.stale(context.fullName)
         if let stale {
@@ -592,12 +642,13 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 menu,
                 header: header,
                 actions: actions,
+                extras: extras,
                 content: .items(stale, emptyTitle: descriptor.emptyTitle, render: { menu, items in
                     descriptor.render(menu, header.fullName, items)
                 })
             )
         } else {
-            self.populateRecentListMenu(menu, header: header, actions: actions, content: .loading)
+            self.populateRecentListMenu(menu, header: header, actions: actions, extras: extras, content: .loading)
         }
         menu.update()
 
@@ -608,13 +659,14 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                 menu,
                 header: header,
                 actions: actions,
+                extras: extras,
                 content: .items(items, emptyTitle: descriptor.emptyTitle, render: { menu, items in
                     descriptor.render(menu, header.fullName, items)
                 })
             )
         } catch {
             if stale == nil {
-                self.populateRecentListMenu(menu, header: header, actions: actions, content: .message("Failed to load"))
+                self.populateRecentListMenu(menu, header: header, actions: actions, extras: extras, content: .message("Failed to load"))
             }
         }
         menu.update()
@@ -753,6 +805,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         _ menu: NSMenu,
         header: ListMenuHeader,
         actions: [ListMenuAction] = [],
+        extras: [NSMenuItem] = [],
         content: ListMenuContent
     ) {
         menu.removeAllItems()
@@ -782,6 +835,9 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         }
 
         menu.addItem(.separator())
+        for extra in extras {
+            menu.addItem(extra)
+        }
 
         switch content {
         case let .message(text):
@@ -795,9 +851,12 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
                     item.isEnabled = false
                     menu.addItem(item)
                 }
-                return
+            } else {
+                render(menu)
             }
-            render(menu)
+        }
+
+        if menu.items.contains(where: { $0.view != nil }) {
             self.menuBuilder.refreshMenuViewHeights(in: menu)
         }
     }
@@ -806,6 +865,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         _ menu: NSMenu,
         header: RecentMenuHeader,
         actions: [RecentMenuAction] = [],
+        extras: [NSMenuItem] = [],
         content: RecentMenuContent
     ) {
         let listHeader = ListMenuHeader(
@@ -837,7 +897,27 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             })
         }
 
-        self.populateListMenu(menu, header: listHeader, actions: listActions, content: listContent)
+        self.populateListMenu(menu, header: listHeader, actions: listActions, extras: extras, content: listContent)
+    }
+
+    private func addEmptyListItem(_ title: String, to menu: NSMenu) {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        menu.addItem(item)
+    }
+
+    private func pullRequestFilterMenuItems(for context: RepoRecentMenuContext) -> [NSMenuItem] {
+        guard context.kind == .pullRequests else { return [] }
+        let filters = RecentPullRequestFiltersView(session: self.appState.session)
+        let item = self.hostingMenuItem(for: filters, enabled: true)
+        return [item, .separator()]
+    }
+
+    private func hostingMenuItem(for view: some View, enabled: Bool) -> NSMenuItem {
+        let item = NSMenuItem()
+        item.isEnabled = enabled
+        item.view = MenuItemHostingView(rootView: AnyView(view))
+        return item
     }
 
     private func addIssueMenuItem(_ issue: RepoIssueSummary, to menu: NSMenu) {
@@ -1070,12 +1150,22 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     }
 
     func registerRecentListMenu(_ menu: NSMenu, context: RepoRecentMenuContext) {
-        self.recentListMenuContexts[ObjectIdentifier(menu)] = context
+        self.recentListMenus[ObjectIdentifier(menu)] = RecentListMenuEntry(menu: menu, context: context)
     }
 
     func cachedRecentListCount(fullName: String, kind: RepoRecentMenuKind) -> Int? {
         guard let descriptor = self.recentMenuDescriptor(for: kind) else { return nil }
         return descriptor.stale(fullName)?.count
+    }
+}
+
+private final class RecentListMenuEntry {
+    weak var menu: NSMenu?
+    let context: RepoRecentMenuContext
+
+    init(menu: NSMenu, context: RepoRecentMenuContext) {
+        self.menu = menu
+        self.context = context
     }
 }
 

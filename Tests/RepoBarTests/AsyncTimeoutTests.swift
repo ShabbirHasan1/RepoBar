@@ -1,5 +1,6 @@
-@testable import RepoBar
 import Testing
+import Foundation
+@testable import RepoBar
 
 @Suite("AsyncTimeout")
 struct AsyncTimeoutTests {
@@ -46,7 +47,7 @@ struct AsyncTimeoutTests {
     }
 }
 
-private final class CancellationFlag {
+private final class CancellationFlag: @unchecked Sendable {
     private let lock = NSLock()
     private(set) var isCancelled = false
 

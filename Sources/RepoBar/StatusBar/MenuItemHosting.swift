@@ -81,6 +81,10 @@ struct MenuItemContainerView<Content: View>: View {
 final class MenuItemHostingView: NSView, MenuItemMeasuring, MenuItemHighlighting {
     private let highlightState: MenuItemHighlightState?
     private let hostingController: NSHostingController<AnyView>
+    private var contentVersion: Int = 0
+    private var cachedWidth: CGFloat?
+    private var cachedHeight: CGFloat?
+    private var cachedContentVersion: Int = -1
 
     override var allowsVibrancy: Bool { true }
     override var focusRingType: NSFocusRingType {
@@ -98,6 +102,7 @@ final class MenuItemHostingView: NSView, MenuItemMeasuring, MenuItemHighlighting
         self.highlightState = highlightState
         self.hostingController = NSHostingController(rootView: rootView)
         super.init(frame: .zero)
+        self.contentVersion = 1
         self.configureHostingView()
     }
 
@@ -106,6 +111,7 @@ final class MenuItemHostingView: NSView, MenuItemMeasuring, MenuItemHighlighting
         self.highlightState = nil
         self.hostingController = NSHostingController(rootView: rootView)
         super.init(frame: .zero)
+        self.contentVersion = 1
         self.configureHostingView()
     }
 
@@ -124,6 +130,9 @@ final class MenuItemHostingView: NSView, MenuItemMeasuring, MenuItemHighlighting
     }
 
     func measuredHeight(width: CGFloat) -> CGFloat {
+        if self.cachedWidth == width, self.cachedContentVersion == self.contentVersion, let cachedHeight = self.cachedHeight {
+            return cachedHeight
+        }
         if self.frame.size.width != width || self.bounds.size.width != width {
             self.frame.size.width = width
             self.bounds.size.width = width
@@ -135,11 +144,17 @@ final class MenuItemHostingView: NSView, MenuItemMeasuring, MenuItemHighlighting
         let measured = self.hostingController.sizeThatFits(in: proposed)
         let scale = self.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
         let rounded = ceil(measured.height * scale) / scale
+        self.cachedWidth = width
+        self.cachedHeight = rounded
+        self.cachedContentVersion = self.contentVersion
         return rounded
     }
 
     func updateRootView(_ rootView: AnyView) {
         self.hostingController.rootView = rootView
+        self.contentVersion += 1
+        self.cachedWidth = nil
+        self.cachedHeight = nil
         self.invalidateIntrinsicContentSize()
     }
 

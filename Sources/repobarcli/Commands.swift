@@ -18,6 +18,8 @@ struct RepoBarRoot: ParsableCommand {
                 LocalProjectsCommand.self,
                 RefreshCommand.self,
                 ContributionsCommand.self,
+                ChangelogCommand.self,
+                MarkdownCommand.self,
                 LoginCommand.self,
                 LogoutCommand.self,
                 StatusCommand.self

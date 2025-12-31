@@ -1,26 +1,26 @@
 import Foundation
 
-struct ChangelogSection: Equatable, Sendable {
-    let title: String
-    let entryCount: Int
+public struct ChangelogSection: Equatable, Sendable {
+    public let title: String
+    public let entryCount: Int
 
-    var isUnreleased: Bool {
+    public var isUnreleased: Bool {
         self.title.localizedCaseInsensitiveContains("unreleased")
     }
 }
 
-struct ChangelogParsed: Equatable, Sendable {
-    let sections: [ChangelogSection]
+public struct ChangelogParsed: Equatable, Sendable {
+    public let sections: [ChangelogSection]
 }
 
-struct ChangelogRowPresentation: Hashable, Sendable {
-    let title: String
-    let badgeText: String?
-    let detailText: String?
+public struct ChangelogRowPresentation: Hashable, Sendable {
+    public let title: String
+    public let badgeText: String?
+    public let detailText: String?
 }
 
-enum ChangelogParser {
-    static func parse(markdown: String) -> ChangelogParsed {
+public enum ChangelogParser {
+    public static func parse(markdown: String) -> ChangelogParsed {
         let normalized = markdown.replacingOccurrences(of: "\r\n", with: "\n")
         let lines = normalized.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         var sections: [ChangelogSection] = []
@@ -52,7 +52,7 @@ enum ChangelogParser {
         return ChangelogParsed(sections: sections)
     }
 
-    static func presentation(parsed: ChangelogParsed, releaseTag: String?) -> ChangelogRowPresentation? {
+    public static func presentation(parsed: ChangelogParsed, releaseTag: String?) -> ChangelogRowPresentation? {
         guard parsed.sections.isEmpty == false else { return nil }
 
         if let unreleased = parsed.sections.first(where: { $0.isUnreleased }) {

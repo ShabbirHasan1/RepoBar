@@ -1,4 +1,4 @@
-@testable import RepoBar
+@testable import RepoBarCore
 import Testing
 
 struct ChangelogParserTests {

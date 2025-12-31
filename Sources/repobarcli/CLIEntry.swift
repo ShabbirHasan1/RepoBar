@@ -22,7 +22,7 @@ enum RepoBarCLI {
         }
     }
 
-    private static func makeCommand(from invocation: CommandInvocation) throws -> any CommanderRunnableCommand {
+    static func makeCommand(from invocation: CommandInvocation) throws -> any CommanderRunnableCommand {
         guard let name = invocation.path.last else {
             throw CLIError.unknownCommand("repobar")
         }
@@ -42,6 +42,8 @@ enum RepoBarCLI {
         LocalProjectsCommand.commandName: LocalProjectsCommand.self,
         RefreshCommand.commandName: RefreshCommand.self,
         ContributionsCommand.commandName: ContributionsCommand.self,
+        ChangelogCommand.commandName: ChangelogCommand.self,
+        MarkdownCommand.commandName: MarkdownCommand.self,
         LoginCommand.commandName: LoginCommand.self,
         LogoutCommand.commandName: LogoutCommand.self,
         StatusCommand.commandName: StatusCommand.self

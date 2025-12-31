@@ -434,16 +434,6 @@ private func refreshPinned(_ pinned: [String], client: GitHubClient) async throw
     }
 }
 
-private func printJSON(_ output: some Encodable) throws {
-    let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-    encoder.dateEncodingStrategy = .iso8601
-    let data = try encoder.encode(output)
-    if let json = String(data: data, encoding: .utf8) {
-        print(json)
-    }
-}
-
 private func makeRepoURL(baseHost: URL, owner: String, name: String) -> URL {
     baseHost.appending(path: "/\(owner)/\(name)")
 }

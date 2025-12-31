@@ -20,6 +20,7 @@ let package = Package(
         .package(url: "https://github.com/openid/AppAuth-iOS", from: "2.0.0"),
         .package(url: "https://github.com/apollographql/apollo-ios", from: "2.0.3"),
         .package(url: "https://github.com/onevcat/Kingfisher", from: "8.6.0"),
+        .package(url: "https://github.com/steipete/Swiftdansi", from: "0.1.1"),
     ],
     targets: [
         .target(
@@ -52,6 +53,7 @@ let package = Package(
             name: "repobarcli",
             dependencies: [
                 .product(name: "Commander", package: "Commander"),
+                .product(name: "Swiftdansi", package: "Swiftdansi"),
                 "RepoBarCore",
             ],
             path: "Sources/repobarcli",
@@ -69,6 +71,9 @@ let package = Package(
             name: "repobarcliTests",
             dependencies: ["repobarcli"],
             path: "Tests/repobarcliTests",
+            resources: [
+                .process("Fixtures"),
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency"),
                 .enableExperimentalFeature("SwiftTesting"),

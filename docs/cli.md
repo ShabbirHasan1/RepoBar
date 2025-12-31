@@ -38,6 +38,10 @@ Binary name: `repobar`
 - `refresh`: refresh pinned repositories using current settings.
 - `contributions`: fetch contribution heatmap for a user.
   - Flags: `--login`.
+- `changelog <path>`: parse a changelog and summarize entries.
+  - Flags: `--release`, `--json`, `--plain`, `--no-color`.
+- `markdown <path>`: render markdown to ANSI text.
+  - Flags: `--width`, `--no-wrap`, `--plain`, `--no-color`.
 - `login`: browser OAuth login.
   - Flags: `--host`, `--client-id`, `--client-secret`, `--loopback-port`.
 - `logout`: clear stored credentials.

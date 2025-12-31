@@ -166,6 +166,16 @@ func printError(_ message: String) {
     }
 }
 
+func printJSON(_ output: some Encodable) throws {
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    encoder.dateEncodingStrategy = .iso8601
+    let data = try encoder.encode(output)
+    if let json = String(data: data, encoding: .utf8) {
+        print(json)
+    }
+}
+
 func openURL(_ url: URL) throws {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
@@ -195,6 +205,8 @@ enum HelpTarget: String {
     case local
     case refresh
     case contributions
+    case changelog
+    case markdown
     case login
     case logout
     case status
@@ -229,6 +241,10 @@ enum HelpTarget: String {
             return .refresh
         case ContributionsCommand.commandName:
             return .contributions
+        case ChangelogCommand.commandName:
+            return .changelog
+        case MarkdownCommand.commandName:
+            return .markdown
         case LoginCommand.commandName:
             return .login
         case LogoutCommand.commandName:
@@ -255,6 +271,8 @@ func printHelp(_ target: HelpTarget) {
           repobar local [--root PATH] [--depth N] [--sync] [--limit N] [--json] [--plain]
           repobar refresh [--json] [--plain]
           repobar contributions [--login USER] [--json] [--plain]
+          repobar changelog <path> [--release TAG] [--json] [--plain]
+          repobar markdown <path> [--width N] [--no-wrap] [--plain] [--no-color]
           repobar login [--host URL] [--client-id ID] [--client-secret SECRET] [--loopback-port PORT]
           repobar logout
           repobar status [--json]
@@ -384,6 +402,32 @@ func printHelp(_ target: HelpTarget) {
           --json        Output JSON instead of formatted text
           --plain       Plain output (no links, no colors)
           --no-color    Disable color output
+        """
+    case .changelog:
+        """
+        repobar changelog - parse a changelog and summarize entries
+
+        Usage:
+          repobar changelog <path> [--release TAG] [--json] [--plain]
+
+        Options:
+          --release TAG  Release tag to compare against (ex: v1.0.0)
+          --json         Output JSON instead of formatted text
+          --plain        Plain output (no links, no colors)
+          --no-color     Disable color output
+        """
+    case .markdown:
+        """
+        repobar markdown - render markdown to ANSI text
+
+        Usage:
+          repobar markdown <path> [--width N] [--no-wrap] [--plain] [--no-color]
+
+        Options:
+          --width N   Wrap at N columns (defaults to terminal width)
+          --no-wrap   Disable line wrapping
+          --plain     Plain output (strip ANSI styles)
+          --no-color  Disable color output
         """
     case .login:
         """

@@ -1,5 +1,5 @@
 {
-  "originHash" : "7c43c6ca3869ad480b424d492833a3b9c1d1531fd0c170b68b2d3bbd4a2c14db",
+  "originHash" : "453001498773e775fcce320f826edc3175121f02688176b9cbb159c462914983",
   "pins" : [
     {
       "identity" : "apollo-ios",
@@ -65,12 +65,57 @@
       }
     },
     {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "c5d11a805e765f52ba34ec7284bd4fcd6ba68615",
+        "version" : "1.7.0"
+      }
+    },
+    {
+      "identity" : "swift-cmark",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-cmark.git",
+      "state" : {
+        "revision" : "5d9bdaa4228b381639fff09403e39a04926e2dbe",
+        "version" : "0.7.1"
+      }
+    },
+    {
+      "identity" : "swift-displaywidth",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ainame/swift-displaywidth",
+      "state" : {
+        "revision" : "e2bfbdf1469366483451708bca36511f4f48ddb1",
+        "version" : "0.0.3"
+      }
+    },
+    {
+      "identity" : "swift-markdown",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-markdown",
+      "state" : {
+        "revision" : "7d9a5ce307528578dfa777d505496bd5f544ad94",
+        "version" : "0.7.3"
+      }
+    },
+    {
       "identity" : "swift-numerics",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-numerics.git",
       "state" : {
         "revision" : "0c0290ff6b24942dadb83a929ffaaa1481df04a2",
         "version" : "1.1.1"
+      }
+    },
+    {
+      "identity" : "swiftdansi",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/steipete/Swiftdansi",
+      "state" : {
+        "revision" : "fb1c339a41f0452d0580a25f0b71274436759b1a",
+        "version" : "0.1.1"
       }
     }
   ],

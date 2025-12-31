@@ -35,7 +35,6 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private var lastMainMenuWidth: CGFloat?
     private var lastMainMenuSignature: MenuBuildSignature?
     private var lastMainMenuWidthSignature: MenuBuildSignature?
-    private var lastMenuClickToken: UUID?
     var webURLBuilder: RepoWebURLBuilder { RepoWebURLBuilder(host: self.appState.session.settings.githubHost) }
     private weak var checkoutProgressWindow: NSWindow?
 
@@ -61,36 +60,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         self.mainMenu = menu
         self.statusItem = statusItem
         statusItem.menu = menu
-        self.configureStatusItemButton(statusItem)
         self.logMenuEvent("attachMainMenu statusItem=\(self.objectID(statusItem)) menuItems=\(menu.items.count)")
-    }
-
-    private func configureStatusItemButton(_ statusItem: NSStatusItem) {
-        if statusItem.button == nil {
-            self.logMenuEvent("configureStatusItemButton missing button statusItem=\(self.objectID(statusItem))")
-        }
-        statusItem.button?.target = self
-        statusItem.button?.action = #selector(self.statusItemButtonClicked(_:))
-    }
-
-    @objc private func statusItemButtonClicked(_ sender: NSStatusBarButton) {
-        guard let statusItem = self.statusItem else { return }
-        self.logMenuEvent(
-            "statusItemButtonClicked statusItem=\(self.objectID(statusItem)) menuNil=\(statusItem.menu == nil) buttonState=\(sender.state.rawValue)"
-        )
-        if statusItem.menu == nil {
-            self.attachMainMenu(to: statusItem)
-        }
-        sender.performClick(nil)
-        let token = UUID()
-        self.lastMenuClickToken = token
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
-            guard let self, self.lastMenuClickToken == token else { return }
-            let menuVisible = self.mainMenu?.items.compactMap(\.view).first?.window?.isVisible == true
-            if menuVisible == false {
-                self.logMenuEvent("menuDidNotOpen statusItem=\(self.objectID(statusItem)) menuNil=\(statusItem.menu == nil)")
-            }
-        }
     }
 
     // MARK: - Menu actions

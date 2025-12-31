@@ -6,7 +6,7 @@ import RepoBarCore
 /// Handles GitHub App OAuth using browser + loopback, PKCE, and refresh tokens.
 @MainActor
 final class OAuthCoordinator {
-    private let tokenStore = TokenStore()
+    private let tokenStore = TokenStore.shared
     private let tokenRefresher = OAuthTokenRefresher()
     private let logger = Logger(subsystem: "com.steipete.repobar", category: "oauth")
     private let signposter = OSSignposter(subsystem: "com.steipete.repobar", category: "oauth")

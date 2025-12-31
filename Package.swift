@@ -5,8 +5,10 @@ let package = Package(
     name: "RepoBar",
     platforms: [
         .macOS(.v15),
+        .iOS(.v26),
     ],
     products: [
+        .library(name: "RepoBarCore", targets: ["RepoBarCore"]),
         // Named to avoid colliding with `RepoBar` on case-insensitive filesystems.
         .executable(name: "repobarcli", targets: ["repobarcli"]),
     ],

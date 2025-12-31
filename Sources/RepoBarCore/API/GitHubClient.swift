@@ -3,7 +3,7 @@ import Foundation
 /// Lightweight GitHub client using REST plus a minimal GraphQL enrichment step.
 public actor GitHubClient {
     public var apiHost: URL = .init(string: "https://api.github.com")!
-    private let tokenStore = TokenStore()
+    private let tokenStore = TokenStore.shared
     private var tokenProvider: (@Sendable () async throws -> OAuthTokens?)?
     private let graphQL = GraphQLClient()
     private let diag = DiagnosticsLogger.shared
@@ -298,6 +298,14 @@ public actor GitHubClient {
 
     public func recentBranches(owner: String, name: String, limit: Int = 20) async throws -> [RepoBranchSummary] {
         try await self.restAPI.recentBranches(owner: owner, name: name, limit: limit)
+    }
+
+    public func repoContents(owner: String, name: String, path: String? = nil) async throws -> [RepoContentItem] {
+        try await self.restAPI.repoContents(owner: owner, name: name, path: path)
+    }
+
+    public func repoFileContents(owner: String, name: String, path: String) async throws -> Data {
+        try await self.restAPI.repoFileContents(owner: owner, name: name, path: path)
     }
 
     public func topContributors(owner: String, name: String, limit: Int = 20) async throws -> [RepoContributorSummary] {

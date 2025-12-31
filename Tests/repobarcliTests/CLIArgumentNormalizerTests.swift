@@ -1,5 +1,5 @@
-@testable import repobarcli
 import Commander
+@testable import repobarcli
 import RepoBarCore
 import Testing
 

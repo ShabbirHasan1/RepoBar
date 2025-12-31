@@ -35,7 +35,9 @@ actor GitHubRequestRunner {
     func get(
         url: URL,
         token: String,
-        allowedStatuses: Set<Int> = [200, 304]
+        allowedStatuses: Set<Int> = [200, 304],
+        headers: [String: String] = [:],
+        useETag: Bool = true
     ) async throws -> (Data, HTTPURLResponse) {
         let startedAt = Date()
         await self.diag.message("GET \(url.absoluteString)")
@@ -57,7 +59,10 @@ actor GitHubRequestRunner {
         var request = URLRequest(url: url)
         // GitHub requires "Bearer" for OAuth access tokens; "token" is for classic tokens.
         request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        if let cached = await etagCache.cached(for: url) {
+        for (header, value) in headers {
+            request.addValue(value, forHTTPHeaderField: header)
+        }
+        if useETag, let cached = await etagCache.cached(for: url) {
             request.addValue(cached.etag, forHTTPHeaderField: "If-None-Match")
         }
 
@@ -67,7 +72,7 @@ actor GitHubRequestRunner {
         await self.logResponse("GET", url: url, response: response, startedAt: startedAt)
 
         let status = response.statusCode
-        if status == 304, let cached = await etagCache.cached(for: url) {
+        if status == 304, useETag, let cached = await etagCache.cached(for: url) {
             await self.diag.message("304 Not Modified for \(url.lastPathComponent); using cached")
             return (cached.data, response)
         }
@@ -112,7 +117,7 @@ actor GitHubRequestRunner {
             )
         }
 
-        if let etag = response.value(forHTTPHeaderField: "ETag") {
+        if useETag, let etag = response.value(forHTTPHeaderField: "ETag") {
             await self.etagCache.save(url: url, etag: etag, data: data)
             await self.diag.message("Cached ETag for \(url.lastPathComponent)")
         }

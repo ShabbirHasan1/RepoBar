@@ -1,0 +1,35 @@
+name: RepoBariOS
+options:
+  bundleIdPrefix: com.steipete
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: 6.2
+packages:
+  RepoBar:
+    path: ..
+targets:
+  RepoBariOS:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    resources:
+      - Resources
+    dependencies:
+      - package: RepoBar
+        product: RepoBarCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.steipete.repobar.ios
+        INFOPLIST_FILE: Resources/Info.plist
+        TARGETED_DEVICE_FAMILY: "1,2"
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        CODE_SIGN_ENTITLEMENTS: RepoBariOS.entitlements
+        SWIFT_STRICT_CONCURRENCY: complete
+    info:
+      path: Resources/Info.plist
+    frameworks:
+      - AuthenticationServices

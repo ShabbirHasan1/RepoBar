@@ -178,6 +178,41 @@ struct GitHubRestAPI: Sendable {
         }
     }
 
+    func repoContents(owner: String, name: String, path: String? = nil) async throws -> [RepoContentItem] {
+        let token = try await tokenProvider()
+        let baseURL = await apiHost()
+        let trimmed = path?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let suffix = trimmed.isEmpty ? "" : "/\(trimmed)"
+        let url = baseURL.appending(path: "/repos/\(owner)/\(name)/contents\(suffix)")
+        let (data, response) = try await authorizedGet(
+            url: url,
+            token: token,
+            allowedStatuses: [200, 304, 404]
+        )
+        if response.statusCode == 404 {
+            return []
+        }
+        if let list = try? GitHubDecoding.decode([RepoContentItem].self, from: data) {
+            return list
+        }
+        let item = try GitHubDecoding.decode(RepoContentItem.self, from: data)
+        return [item]
+    }
+
+    func repoFileContents(owner: String, name: String, path: String) async throws -> Data {
+        let token = try await tokenProvider()
+        let baseURL = await apiHost()
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        let url = baseURL.appending(path: "/repos/\(owner)/\(name)/contents/\(trimmed)")
+        let (data, _) = try await authorizedGet(
+            url: url,
+            token: token,
+            headers: ["Accept": "application/vnd.github.raw"],
+            useETag: false
+        )
+        return data
+    }
+
     func openPullRequestCount(owner: String, name: String) async throws -> Int {
         let token = try await tokenProvider()
         let baseURL = await apiHost()
@@ -404,9 +439,17 @@ struct GitHubRestAPI: Sendable {
     private func authorizedGet(
         url: URL,
         token: String,
-        allowedStatuses: Set<Int> = [200, 304]
+        allowedStatuses: Set<Int> = [200, 304],
+        headers: [String: String] = [:],
+        useETag: Bool = true
     ) async throws -> (Data, HTTPURLResponse) {
-        try await self.requestRunner.get(url: url, token: token, allowedStatuses: allowedStatuses)
+        try await self.requestRunner.get(
+            url: url,
+            token: token,
+            allowedStatuses: allowedStatuses,
+            headers: headers,
+            useETag: useETag
+        )
     }
 }
 

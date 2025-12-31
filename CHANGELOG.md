@@ -17,6 +17,7 @@
 - iOS: present the logo in a squircle with more padding on login.
 - iOS: add activity/commit icons in the activity list.
 - iOS: add a repo detail hierarchy with category drill-down lists.
+- iOS: declare iPad orientations to silence Xcode build warnings.
 - Fix CLI: allow invoking bundled `repobarcli` directly (argv0 normalization).
 - Fix CLI auth refresh: show actionable error when refresh response is missing tokens.
 - Add Settings installer to link `repobar` CLI into common Homebrew paths.

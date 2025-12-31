@@ -80,7 +80,7 @@ extension StatusBarMenuBuilder {
 
         let presentation = self.target.cachedChangelogPresentation(fullName: fullName, releaseTag: releaseTag)
         let headline = self.target.cachedChangelogHeadline(fullName: fullName)
-        let title = presentation?.title ?? "Changelog"
+        let title = headline == nil ? (presentation?.title ?? "Changelog") : "Changelog"
         let badgeText = headline ?? presentation?.badgeText
         let detailText = headline == nil ? presentation?.detailText : nil
         let row = RecentListSubmenuRowView(

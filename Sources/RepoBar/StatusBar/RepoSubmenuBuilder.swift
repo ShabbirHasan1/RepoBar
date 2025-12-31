@@ -375,8 +375,8 @@ struct RepoSubmenuBuilder {
         self.target.registerChangelogMenu(submenu, fullName: fullName, localStatus: localStatus)
         submenu.addItem(self.menuBuilder.infoItem("Loading…"))
 
-        let title = presentation?.title ?? "Changelog"
         let headline = self.target.cachedChangelogHeadline(fullName: fullName)
+        let title = headline == nil ? (presentation?.title ?? "Changelog") : "Changelog"
         let badgeText = headline ?? presentation?.badgeText
         let detailText = headline == nil ? presentation?.detailText : nil
         let row = RecentListSubmenuRowView(

@@ -5,8 +5,21 @@ import RepoBarCore
 @MainActor
 @Observable
 final class RepoDetailModel {
+    private enum DetailSection: String {
+        case pulls = "Pull Requests"
+        case issues = "Issues"
+        case releases = "Releases"
+        case workflows = "Workflow Runs"
+        case commits = "Commits"
+        case discussions = "Discussions"
+        case tags = "Tags"
+        case branches = "Branches"
+        case contributors = "Contributors"
+    }
+
     let repo: Repository
     private let github: GitHubClient
+    private let logger = RepoBarLogging.logger("repo-detail")
     var isLoading = false
     var pulls: [RepoPullRequestSummary] = []
     var issues: [RepoIssueSummary] = []
@@ -60,43 +73,100 @@ final class RepoDetailModel {
 
         switch await pullsResult {
         case let .success(value): pulls = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .pulls)
         }
         switch await issuesResult {
         case let .success(value): issues = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .issues)
         }
         switch await releasesResult {
         case let .success(value): releases = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .releases)
         }
         switch await workflowsResult {
         case let .success(value): workflows = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .workflows)
         }
         switch await commitsResult {
         case let .success(value): commits = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .commits)
         }
         switch await discussionsResult {
         case let .success(value): discussions = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .discussions)
         }
         switch await tagsResult {
         case let .success(value): tags = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .tags)
         }
         switch await branchesResult {
         case let .success(value): branches = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .branches)
         }
         switch await contributorsResult {
         case let .success(value): contributors = value
-        case let .failure(error): self.error = error.userFacingMessage
+        case let .failure(error): self.record(error, section: .contributors)
         }
     }
 
     private func capture<T>(_ work: @escaping () async throws -> T) async -> Result<T, Error> {
         do { return try await .success(work()) } catch { return .failure(error) }
+    }
+
+    private func record(_ error: Error, section: DetailSection) {
+        logger.warning("Repo detail \(section.rawValue) failed for \(repo.fullName): \(String(describing: error))")
+        guard let message = self.message(for: error, section: section) else { return }
+        if self.error == nil {
+            self.error = message
+        }
+    }
+
+    private func message(for error: Error, section: DetailSection) -> String? {
+        if let ghError = error as? GitHubAPIError {
+            switch ghError {
+            case let .badStatus(code, _):
+                return self.badStatusMessage(code: code, section: section)
+            case let .rateLimited(until, message):
+                if let until {
+                    return "\(section.rawValue) rate limited. Retry \(RelativeFormatter.string(from: until, relativeTo: Date()))."
+                }
+                return "\(section.rawValue) rate limited. \(message)"
+            case let .serviceUnavailable(retryAfter, message):
+                if let retryAfter {
+                    return "\(section.rawValue) temporarily unavailable. Retry \(RelativeFormatter.string(from: retryAfter, relativeTo: Date()))."
+                }
+                return "\(section.rawValue) temporarily unavailable. \(message)"
+            case .invalidHost:
+                return "GitHub host is invalid. Check the Enterprise URL in Settings."
+            case .invalidPEM:
+                return "GitHub key is invalid. Check your credentials."
+            }
+        }
+
+        if let urlError = error as? URLError, urlError.code == .fileDoesNotExist {
+            return self.badStatusMessage(code: 404, section: section)
+        }
+
+        return "\(section.rawValue) failed. \(error.userFacingMessage)"
+    }
+
+    private func badStatusMessage(code: Int, section: DetailSection) -> String {
+        switch code {
+        case 401, 403:
+            return "\(section.rawValue) unavailable. Check GitHub access and token scopes."
+        case 404:
+            switch section {
+            case .releases:
+                return "No releases published yet."
+            case .discussions:
+                return "Discussions are disabled for this repository."
+            case .workflows:
+                return "GitHub Actions data is unavailable for this repository."
+            default:
+                return "Repository data unavailable. It may be renamed, deleted, or you no longer have access."
+            }
+        default:
+            return "\(section.rawValue) failed (HTTP \(code)). \(HTTPURLResponse.localizedString(forStatusCode: code))."
+        }
     }
 }

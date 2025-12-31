@@ -27,6 +27,7 @@ private struct RepoFileListView: View {
     @Bindable var appModel: AppModel
     let repository: Repository
     let path: String?
+    private let logger = RepoBarLogging.logger("repo-files")
     @State private var items: [RepoContentItem] = []
     @State private var isLoading = false
     @State private var error: String?
@@ -78,8 +79,10 @@ private struct RepoFileListView: View {
             items = sorted
             error = nil
         } catch {
+            logger.warning("Repo files list failed for \(repository.fullName) path=\(path ?? "/"): \(String(describing: error))")
             items = []
-            self.error = error.userFacingMessage
+            let location = path?.isEmpty == false ? path ?? "" : "repository root"
+            self.error = "Unable to load files for \(location). \(error.userFacingMessage)"
         }
     }
 }
@@ -88,6 +91,7 @@ private struct RepoFilePreviewView: View {
     @Bindable var appModel: AppModel
     let repository: Repository
     let item: RepoContentItem
+    private let logger = RepoBarLogging.logger("repo-files")
     @State private var content: String?
     @State private var isLoading = false
     @State private var error: String?
@@ -142,7 +146,8 @@ private struct RepoFilePreviewView: View {
                 error = "Binary file preview not supported"
             }
         } catch {
-            self.error = error.userFacingMessage
+            logger.warning("Repo file preview failed for \(repository.fullName) file=\(item.path): \(String(describing: error))")
+            self.error = "Unable to load preview. \(error.userFacingMessage)"
         }
     }
 }

@@ -1,111 +1,52 @@
 # Changelog
 
-## Unreleased
+## 0.1.0 - 2025-12-31
 
-### Added
-- RepoBarCore shared module for GitHub API/auth/models used by the app and CLI.
-- Contribution header submenu with a global activity feed and a quick link to the GitHub profile.
-- Contribution header submenu now shows recent commits above activity with “More…” submenus.
-- Global activity scope setting to switch between all activity and your activity.
-- repobar bundled CLI with login/logout/status and repo listing (activity, issues, PRs, stars), JSON output, and limit flag.
-- repobar CLI now supports `issues` and `pulls` to list the 20 most recently updated open items for a repository.
-- CLI repo listing now filters to the signed-in user and owned orgs (admin membership).
-- repobar now defaults to 365-day activity filtering and supports `--age` to override.
-- repobar shows clickable repo links by default (use `--plain` for no links/colors/URLs).
-- repobar can show latest release tag/date with `--release`.
-- repobar can fetch contribution heatmaps, refresh pinned repositories, and show repo detail data.
-- repobar can filter to pinned repos with `--pinned-only`.
-- repobar repo listing now supports `--scope` (all/pinned/hidden) and `--filter` (all/work/issues/prs).
-- Forked repositories are hidden by default in the mac app and CLI (use `--forks` or enable “Include forked repositories” in Settings).
-- Archived repositories are hidden by default in the mac app and CLI (use `--archived` or enable “Include archived repositories” in Settings).
-- repobar can filter to repos with work using `--only-with work` (or `issues`, `prs`).
-- Repo list sorting now uses the same activity/issue/PR/star ordering in the mac app and CLI.
-- Clicking a repo card opens the repository in the browser.
-- Repo detail cache now persists on disk to survive app restarts.
-- Repo display limit options expanded to 3/6/9/12 (default 6).
-- Ghostty open mode picker for “Open in Terminal” (New Window or Tab).
-- Repo autocomplete now uses a floating window and hybrid fuzzy matching for owner/repo input.
+First public release of RepoBar — a macOS menubar dashboard for GitHub repo health, activity, and local project state.
 
-### Changed
-- OAuth/login helpers moved to RepoBarCore so app and CLI share the same keychain flow.
-- repobar now uses Commander for command parsing and subcommand routing.
-- repobar debug builds are now codesigned with a stable identifier (no repeated Keychain prompts after rebuilds).
-- repobar CLI now installs as `repobar` (with `repobarcli` alias via pnpm).
-- mac app now caches repo detail fetches for 1 hour to reduce API usage.
-- Release packaging now produces universal app bundles (arm64 + x86_64).
-- Debug builds now default local projects to `~/Projects`.
-- RepoBar now runs without the app sandbox (security-scoped bookmarks remain for compatibility).
-- mac app image loading now uses Kingfisher (replacing Nuke).
-- Token refresh now preserves OAuth client credentials and shows a clearer error when refresh fails.
-- Menubar repository rows now use tighter, more native spacing with submenu indicators and icons.
-- Menubar repository cards now include more breathing room between entries.
-- Menubar heatmaps adapt width to the visible span and use a muted palette on highlight.
-- Menu filters use compact segmented controls and the update prompt is labeled “Restart to update”.
-- Menu filters now sit on a single row and the menu includes an About item.
-- Menu filter toggles now refresh the menu immediately.
-- Menu bar now uses MenuBarExtraAccess with an AppKit NSMenu for native layout while still opening Preferences directly from the menu.
-- Empty repo state now explains active filters and keeps filter controls visible.
-- SwiftUI and app models now use `@Observable`/`@Bindable` for state updates.
-- Account settings no longer repeat the username/host details when already shown in the signed-in header.
-- Account settings align Log out with the signed-in header and add padding.
-- Menu sort order is now configurable in the menu and saved in Settings.
-- Accounts settings pane now uses grouped styling, labeled fields, and a compact signed-in status block.
-- Settings window height increased; Quit button now uses standard styling.
-- Repo menu headers now combine CI dot, repository name, and release/time on a single row.
-- Repo submenus now include a Commits list (with total count) above Issues.
-- Repo menu stat row now includes stars and forks for quick popularity context.
-- Repo menu stat row now includes last push age.
-- Repo submenus now list remaining repository details like CI run count and traffic stats when available.
-- Repo submenus now include an “Open Activity” link and a single Activity list (up to 10 items) with quick links.
-- Repo submenus now include nested lists for Issues and Pull Requests (20 most recently updated open items).
-- Repo recent item submenus now prefetch and reuse cached results to avoid showing a loading state.
-- Repo submenus now show item count badges for nested Issues/PRs/Releases.
-- Activity event links now deep-link to stars, releases, forks, and commits when available.
-- Recent activity now includes action/number labels, repo targets, and avatar icons.
-- Activity row now shows the latest activity timestamp aligned to the right.
-- Contribution and repository heatmaps now align to the same week-based date range.
-- Repo submenu heatmaps now include date range axis labels (inline heatmap omits them).
-- Heatmap rendering now uses cached CoreGraphics rasterization for faster menu redraws.
-- Heatmaps now stretch to the full available menu width (respecting existing card padding).
-- `pnpm restart` now rebuilds and relaunches without running tests; use `pnpm test` for tests and `pnpm check:coverage` for coverage.
-- `repobar local --sync` now shows a per-repo SYNC column and includes a `synced` flag in JSON output.
+### Highlights
+- Live repository cards with CI status, activity, releases, and rate‑limit awareness.
+- Rich submenus for recent pull requests, issues, releases, workflow runs, discussions, tags, branches, and commits.
+- Local Git state surfaced directly in the menu (branch, upstream/ahead/behind, dirty files, worktrees) with safe actions.
+- Contribution heatmap header and global activity feed.
+- Fast, native menu UI with adaptive layout and caching for performance.
 
-### Fixed
-- Settings now open via SwiftUI `openSettings` from the MenuBarExtra.
-- `pnpm start` now packages and launches a proper `.app` bundle (stable bundle identifier for menubar behavior).
-- Contribution heatmap date parsing handles both date-only and ISO8601 timestamps.
-- Sparkle updater initialization now defers controller setup until after `super.init`.
-- Activity labels now use readable event names and prefer issue/PR titles over raw event types.
-- Menu no longer preselects the first item on open.
-- Fixed a crash when opening menus with the raster heatmap renderer.
-- Menu item hosting now uses NSHostingController sizeThatFits for reliable wrapped text sizing.
-- Menu item height measurement now rounds to full pixels to keep separators visible.
-- Menu item height measurement now adds a 1pt buffer to avoid missing separators.
-- Menu rows now remeasure on menu resize, and highlighted separators stay visible.
-- Repo menu separators now render as their own rows to avoid height clipping.
-- Recent list submenus now time out stalled loads instead of hanging on “Loading…”.
-- Repo submenu warnings now wrap to five lines instead of stretching the menu.
-- Repo submenu warning rows now expand to the full menu width.
-- Repo submenu open row now aligns its icon column with submenu items.
-- Repo issue submenus now support Mine/All filters plus label chips with a full label list.
-- Issue filter row now stays single-line with horizontal scrolling chips.
-- Warning text in repo submenus now matches menu padding/indent.
-- Open in Finder/Terminal now uses security-scoped bookmarks for local project paths.
-- Heatmap raster view now re-renders on size/backing changes to avoid first-open sizing glitches.
-- Contribution header hides on failures instead of showing an error message.
-- Menu item rows now honor intrinsic height for multi-line activity text.
-- Heatmaps now pixel-align to avoid uneven left/right padding in the menu.
-- Heatmaps now fill the full menu row width (reclaim submenu chevron padding).
-- Local projects branch detection now uses the first available git binary on PATH/Homebrew to avoid “unknown.”
-- Local projects scanning now correctly traverses security-scoped folder bookmarks resolved to file reference URLs.
-- Local projects now match repo folders case-insensitively to avoid missing status on case-insensitive filesystems.
-- Local projects now prefer the system git binary in sandboxed builds to avoid “unknown/dirty” status when Homebrew git is blocked.
-- Local projects now show added/removed/modified counts when a repo is dirty.
-- Repo submenus now include a CI Runs list with per-run entries (and the count in the badge).
-- Repo submenus now include discussions, tags, branches, contributors, and release assets.
-- CI status dots now increase contrast on highlighted menu rows.
-- GitHub “stats still generating” (HTTP 202) no longer clutters the main repo list and is now shown in repo details instead.
-- Fixed CLI/app binary naming collisions on case-insensitive filesystems (CLI builds as `repobarcli` and is embedded as `repobarcli` in the app bundle).
-- Menu item avatar placeholders no longer expand to infinite height during size measurements.
-- Menu open no longer does a redundant resize pass when the width is unchanged.
-- Repo submenu local status rows now align icon columns with the rest of the submenu.
+### Feature overview
+- **Menubar experience**
+  - Repository cards with stats (stars, forks, issues, last push), CI badge, activity preview, and optional heatmaps.
+  - Pinned/hidden repos, menu filters, and configurable sorting.
+  - Empty/logged‑out states that explain what to do next.
+
+- **Recent activity & insights**
+  - Pull requests, issues, releases, workflow runs, discussions, tags, branches, and commit lists per repo.
+  - Global activity menu with recent events and commits.
+  - Activity links deep‑link to the most relevant GitHub pages.
+
+- **Local projects & Git actions**
+  - Local repo status: current branch, upstream sync, dirty counts, and file lists.
+  - Worktree and branch menus with metadata and quick actions.
+  - Open in Finder/Terminal, checkout, create branch/worktree, sync/rebase/reset.
+
+- **Auth & API**
+  - OAuth login, secure token refresh, and shared core used by the CLI.
+  - Rate‑limit awareness and caching to minimize GitHub API usage.
+
+- **Contribution heatmap**
+  - Header heatmap (cached) with the ability to refresh and clear cache.
+  - Optional menu heatmaps aligned to a week‑based date range.
+
+- **Performance & reliability**
+  - Cached repo details, activity, and heatmaps for a snappy menu.
+  - Menu layout caching, reuse of menu items, and debounced refresh.
+  - Timeouts and graceful fallback for slow network requests.
+
+- **CLI** (`repobar`)
+  - Status and repo listings with filters, JSON/plain output, and release info.
+  - Commands for issues/pulls lists, pinned/hidden scopes, and activity age filtering.
+
+- **Updates**
+  - Sparkle updater for signed builds with update‑ready menu entry and full dialog flow.
+
+- **Developer tooling**
+  - SwiftPM + pnpm scripts, lint/format, Apollo GraphQL codegen.
+  - Release pipeline with signing, notarization, and Sparkle appcast generation.

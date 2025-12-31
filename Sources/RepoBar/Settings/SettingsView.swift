@@ -10,6 +10,9 @@ struct SettingsView: View {
             GeneralSettingsView(session: self.session, appState: self.appState)
                 .tabItem { Label("General", systemImage: "gear") }
                 .tag(SettingsTab.general)
+            DisplaySettingsView(session: self.session, appState: self.appState)
+                .tabItem { Label("Display", systemImage: "rectangle.3.group") }
+                .tag(SettingsTab.display)
             RepoSettingsView(session: self.session, appState: self.appState)
                 .tabItem { Label("Repositories", systemImage: "tray.full") }
                 .tag(SettingsTab.repositories)

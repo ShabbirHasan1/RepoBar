@@ -18,116 +18,171 @@ struct RepoSubmenuBuilder {
         menu.autoenablesItems = false
         menu.delegate = self.target
         let settings = self.appState.session.settings
+        let customization = settings.menuCustomization.normalized()
+        let blocks = self.repoSubmenuBlocks(repo: repo, isPinned: isPinned, customization: customization)
+        self.flattenRepoSubmenuBlocks(blocks).forEach { menu.addItem($0) }
+        return menu
+    }
 
-        let openRow = RecentListSubmenuRowView(
-            title: "Open \(repo.title) in GitHub",
-            systemImage: "arrow.up.right.square",
-            badgeText: nil,
-            onOpen: { [weak target] in
-                target?.openRepoFromMenu(fullName: repo.title)
+    private struct RepoSubmenuBlock {
+        let group: RepoSubmenuItemGroup
+        let items: [NSMenuItem]
+    }
+
+    private func repoSubmenuBlocks(
+        repo: RepositoryDisplayModel,
+        isPinned: Bool,
+        customization: MenuCustomization
+    ) -> [RepoSubmenuBlock] {
+        var blocks: [RepoSubmenuBlock] = []
+        for itemID in customization.repoSubmenuOrder {
+            if customization.hiddenRepoSubmenuItems.contains(itemID) { continue }
+            let items = self.repoSubmenuItems(for: itemID, repo: repo, isPinned: isPinned)
+            if items.isEmpty { continue }
+            blocks.append(RepoSubmenuBlock(group: itemID.group, items: items))
+        }
+        return blocks
+    }
+
+    private func flattenRepoSubmenuBlocks(_ blocks: [RepoSubmenuBlock]) -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        var lastGroup: RepoSubmenuItemGroup?
+        for block in blocks {
+            guard block.items.isEmpty == false else { continue }
+            if let lastGroup, lastGroup != block.group, items.isEmpty == false {
+                items.append(.separator())
             }
-        )
-        menu.addItem(self.menuBuilder.viewItem(for: openRow, enabled: true, highlightable: true))
+            items.append(contentsOf: block.items)
+            lastGroup = block.group
+        }
+        return items
+    }
 
-        if let local = repo.localStatus {
-            menu.addItem(self.menuBuilder.actionItem(
+    private func repoSubmenuItems(
+        for itemID: RepoSubmenuItemID,
+        repo: RepositoryDisplayModel,
+        isPinned: Bool
+    ) -> [NSMenuItem] {
+        let settings = self.appState.session.settings
+        let local = repo.localStatus
+        switch itemID {
+        case .openOnGitHub:
+            let openRow = RecentListSubmenuRowView(
+                title: "Open \(repo.title) in GitHub",
+                systemImage: "arrow.up.right.square",
+                badgeText: nil,
+                onOpen: { [weak target] in
+                    target?.openRepoFromMenu(fullName: repo.title)
+                }
+            )
+            return [self.menuBuilder.viewItem(for: openRow, enabled: true, highlightable: true)]
+        case .openInFinder:
+            guard let local else { return [] }
+            return [self.menuBuilder.actionItem(
                 title: "Open in Finder",
                 action: #selector(StatusBarMenuManager.openLocalFinder(_:)),
                 represented: local.path,
                 systemImage: "folder"
-            ))
-            menu.addItem(self.menuBuilder.actionItem(
+            )]
+        case .openInTerminal:
+            guard let local else { return [] }
+            return [self.menuBuilder.actionItem(
                 title: "Open in Terminal",
                 action: #selector(StatusBarMenuManager.openLocalTerminal(_:)),
                 represented: local.path,
                 systemImage: "terminal"
-            ))
-            menu.addItem(.separator())
+            )]
+        case .checkoutRepo:
+            guard local == nil else { return [] }
+            return [self.menuBuilder.actionItem(
+                title: "Checkout Repo",
+                action: #selector(self.target.checkoutRepoFromMenu),
+                represented: repo.title,
+                systemImage: "arrow.down.to.line"
+            )]
+        case .localState:
+            guard let local else { return [] }
             let stateView = LocalRepoStateMenuView(
                 status: local,
                 onSync: { [weak target] in target?.syncLocalRepo(local) },
                 onRebase: { [weak target] in target?.rebaseLocalRepo(local) },
                 onReset: { [weak target] in target?.resetLocalRepo(local) }
             )
-            menu.addItem(self.menuBuilder.viewItem(for: stateView, enabled: true))
-            menu.addItem(.separator())
-            menu.addItem(self.localWorktreesSubmenuItem(for: local, fullName: repo.title))
-            menu.addItem(.separator())
-        } else {
-            menu.addItem(.separator())
-            menu.addItem(self.menuBuilder.actionItem(
-                title: "Checkout Repo",
-                action: #selector(self.target.checkoutRepoFromMenu),
-                represented: repo.title,
-                systemImage: "arrow.down.to.line"
-            ))
-            menu.addItem(.separator())
-        }
-
-        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
-            title: "Issues",
-            systemImage: "exclamationmark.circle",
-            fullName: repo.title,
-            kind: .issues,
-            openTitle: "Open Issues",
-            openAction: #selector(self.target.openIssues),
-            badgeText: repo.issues > 0 ? StatValueFormatter.compact(repo.issues) : nil
-        )))
-        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
-            title: "Pull Requests",
-            systemImage: "arrow.triangle.branch",
-            fullName: repo.title,
-            kind: .pullRequests,
-            openTitle: "Open Pull Requests",
-            openAction: #selector(self.target.openPulls),
-            badgeText: repo.pulls > 0 ? StatValueFormatter.compact(repo.pulls) : nil
-        )))
-        let cachedReleaseCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .releases)
-        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
-            title: "Releases",
-            systemImage: "tag",
-            fullName: repo.title,
-            kind: .releases,
-            openTitle: "Open Releases",
-            openAction: #selector(self.target.openReleases),
-            badgeText: cachedReleaseCount.flatMap { $0 > 0 ? String($0) : nil }
-        )))
-        let runBadge = repo.ciRunCount.flatMap { $0 > 0 ? String($0) : nil }
-        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
-            title: "CI Runs",
-            systemImage: "bolt",
-            fullName: repo.title,
-            kind: .ciRuns,
-            openTitle: "Open Actions",
-            openAction: #selector(self.target.openActions),
-            badgeText: runBadge
-        )))
-        let cachedDiscussionCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .discussions)
-        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
-            title: "Discussions",
-            systemImage: "bubble.left.and.bubble.right",
-            fullName: repo.title,
-            kind: .discussions,
-            openTitle: "Open Discussions",
-            openAction: #selector(self.target.openDiscussions),
-            badgeText: cachedDiscussionCount.flatMap { $0 > 0 ? String($0) : nil }
-        )))
-        let cachedTagCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .tags)
-        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
-            title: "Tags",
-            systemImage: "tag",
-            fullName: repo.title,
-            kind: .tags,
-            openTitle: "Open Tags",
-            openAction: #selector(self.target.openTags),
-            badgeText: cachedTagCount.flatMap { $0 > 0 ? String($0) : nil }
-        )))
-        let cachedBranchCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .branches)
-        let branchBadge = cachedBranchCount.flatMap { $0 > 0 ? String($0) : nil }
-        if let local = repo.localStatus {
-            menu.addItem(self.branchesSubmenuItem(for: local, fullName: repo.title, badgeText: branchBadge))
-        } else {
-            menu.addItem(self.recentListSubmenuItem(RecentListConfig(
+            return [self.menuBuilder.viewItem(for: stateView, enabled: true)]
+        case .worktrees:
+            guard let local else { return [] }
+            return [self.localWorktreesSubmenuItem(for: local, fullName: repo.title)]
+        case .issues:
+            return [self.recentListSubmenuItem(RecentListConfig(
+                title: "Issues",
+                systemImage: "exclamationmark.circle",
+                fullName: repo.title,
+                kind: .issues,
+                openTitle: "Open Issues",
+                openAction: #selector(self.target.openIssues),
+                badgeText: repo.issues > 0 ? StatValueFormatter.compact(repo.issues) : nil
+            ))]
+        case .pulls:
+            return [self.recentListSubmenuItem(RecentListConfig(
+                title: "Pull Requests",
+                systemImage: "arrow.triangle.branch",
+                fullName: repo.title,
+                kind: .pullRequests,
+                openTitle: "Open Pull Requests",
+                openAction: #selector(self.target.openPulls),
+                badgeText: repo.pulls > 0 ? StatValueFormatter.compact(repo.pulls) : nil
+            ))]
+        case .releases:
+            let cachedReleaseCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .releases)
+            return [self.recentListSubmenuItem(RecentListConfig(
+                title: "Releases",
+                systemImage: "tag",
+                fullName: repo.title,
+                kind: .releases,
+                openTitle: "Open Releases",
+                openAction: #selector(self.target.openReleases),
+                badgeText: cachedReleaseCount.flatMap { $0 > 0 ? String($0) : nil }
+            ))]
+        case .ciRuns:
+            let runBadge = repo.ciRunCount.flatMap { $0 > 0 ? String($0) : nil }
+            return [self.recentListSubmenuItem(RecentListConfig(
+                title: "CI Runs",
+                systemImage: "bolt",
+                fullName: repo.title,
+                kind: .ciRuns,
+                openTitle: "Open Actions",
+                openAction: #selector(self.target.openActions),
+                badgeText: runBadge
+            ))]
+        case .discussions:
+            let cachedDiscussionCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .discussions)
+            return [self.recentListSubmenuItem(RecentListConfig(
+                title: "Discussions",
+                systemImage: "bubble.left.and.bubble.right",
+                fullName: repo.title,
+                kind: .discussions,
+                openTitle: "Open Discussions",
+                openAction: #selector(self.target.openDiscussions),
+                badgeText: cachedDiscussionCount.flatMap { $0 > 0 ? String($0) : nil }
+            ))]
+        case .tags:
+            let cachedTagCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .tags)
+            return [self.recentListSubmenuItem(RecentListConfig(
+                title: "Tags",
+                systemImage: "tag",
+                fullName: repo.title,
+                kind: .tags,
+                openTitle: "Open Tags",
+                openAction: #selector(self.target.openTags),
+                badgeText: cachedTagCount.flatMap { $0 > 0 ? String($0) : nil }
+            ))]
+        case .branches:
+            let cachedBranchCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .branches)
+            let branchBadge = cachedBranchCount.flatMap { $0 > 0 ? String($0) : nil }
+            if let local {
+                return [self.branchesSubmenuItem(for: local, fullName: repo.title, badgeText: branchBadge)]
+            }
+            return [self.recentListSubmenuItem(RecentListConfig(
                 title: "Branches",
                 systemImage: "point.topleft.down.curvedto.point.bottomright.up",
                 fullName: repo.title,
@@ -135,20 +190,20 @@ struct RepoSubmenuBuilder {
                 openTitle: "Open Branches",
                 openAction: #selector(self.target.openBranches),
                 badgeText: branchBadge
-            )))
-        }
-        let cachedContributorCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .contributors)
-        menu.addItem(self.recentListSubmenuItem(RecentListConfig(
-            title: "Contributors",
-            systemImage: "person.2",
-            fullName: repo.title,
-            kind: .contributors,
-            openTitle: "Open Contributors",
-            openAction: #selector(self.target.openContributors),
-            badgeText: cachedContributorCount.flatMap { $0 > 0 ? String($0) : nil }
-        )))
-
-        if settings.heatmap.display == .submenu, !repo.heatmap.isEmpty {
+            ))]
+        case .contributors:
+            let cachedContributorCount = self.target.cachedRecentListCount(fullName: repo.title, kind: .contributors)
+            return [self.recentListSubmenuItem(RecentListConfig(
+                title: "Contributors",
+                systemImage: "person.2",
+                fullName: repo.title,
+                kind: .contributors,
+                openTitle: "Open Contributors",
+                openAction: #selector(self.target.openContributors),
+                badgeText: cachedContributorCount.flatMap { $0 > 0 ? String($0) : nil }
+            ))]
+        case .heatmap:
+            guard settings.heatmap.display == .submenu, !repo.heatmap.isEmpty else { return [] }
             let filtered = HeatmapFilter.filter(repo.heatmap, range: self.appState.session.heatmapRange)
             let heatmap = VStack(spacing: 4) {
                 HeatmapView(
@@ -160,40 +215,39 @@ struct RepoSubmenuBuilder {
             }
             .padding(.horizontal, MenuStyle.cardHorizontalPadding)
             .padding(.vertical, MenuStyle.cardVerticalPadding)
-            menu.addItem(.separator())
-            menu.addItem(self.menuBuilder.viewItem(for: heatmap, enabled: false))
-        }
-
-        let cachedCommits = self.target.recentMenuService.cachedCommits(fullName: repo.title)
-        let commitCount = self.target.cachedRecentCommitCount(fullName: repo.title)
-        let commits = Array((cachedCommits ?? []).prefix(AppLimits.RepoCommits.totalLimit))
-        let commitPreview = Array(commits.prefix(AppLimits.RepoCommits.previewLimit))
-        let commitRemainder = Array(commits.dropFirst(commitPreview.count))
-        menu.addItem(.separator())
-        menu.addItem(self.menuBuilder.actionItem(
-            title: "Open Commits",
-            action: #selector(self.target.openCommits),
-            represented: repo.title,
-            systemImage: "arrow.turn.down.right"
-        ))
-        if commitPreview.isEmpty {
-            let message = commitCount == 0 ? "No commits" : "Loading…"
-            menu.addItem(self.menuBuilder.infoItem(message))
-        } else {
-            commitPreview.forEach { menu.addItem(self.menuBuilder.commitMenuItem(for: $0)) }
-            if commitRemainder.isEmpty == false {
-                menu.addItem(self.repoCommitsMoreMenuItem(commits: commitRemainder))
+            return [self.menuBuilder.viewItem(for: heatmap, enabled: false)]
+        case .commits:
+            let cachedCommits = self.target.recentMenuService.cachedCommits(fullName: repo.title)
+            let commitCount = self.target.cachedRecentCommitCount(fullName: repo.title)
+            let commits = Array((cachedCommits ?? []).prefix(AppLimits.RepoCommits.totalLimit))
+            let commitPreview = Array(commits.prefix(AppLimits.RepoCommits.previewLimit))
+            let commitRemainder = Array(commits.dropFirst(commitPreview.count))
+            var items: [NSMenuItem] = []
+            items.append(self.menuBuilder.actionItem(
+                title: "Open Commits",
+                action: #selector(self.target.openCommits),
+                represented: repo.title,
+                systemImage: "arrow.turn.down.right"
+            ))
+            if commitPreview.isEmpty {
+                let message = commitCount == 0 ? "No commits" : "Loading…"
+                items.append(self.menuBuilder.infoItem(message))
+            } else {
+                commitPreview.forEach { items.append(self.menuBuilder.commitMenuItem(for: $0)) }
+                if commitRemainder.isEmpty == false {
+                    items.append(self.repoCommitsMoreMenuItem(commits: commitRemainder))
+                }
             }
-        }
-
-        let events = Array(repo.activityEvents.prefix(AppLimits.RepoActivity.limit))
-        let activityPreview = Array(events.prefix(AppLimits.RepoActivity.previewLimit))
-        let activityRemainder = Array(events.dropFirst(activityPreview.count))
-        let hasActivityLink = repo.activityURL != nil
-        if hasActivityLink || activityPreview.isEmpty == false {
-            menu.addItem(.separator())
+            return items
+        case .activity:
+            let events = Array(repo.activityEvents.prefix(AppLimits.RepoActivity.limit))
+            let activityPreview = Array(events.prefix(AppLimits.RepoActivity.previewLimit))
+            let activityRemainder = Array(events.dropFirst(activityPreview.count))
+            let hasActivityLink = repo.activityURL != nil
+            guard hasActivityLink || activityPreview.isEmpty == false else { return [] }
+            var items: [NSMenuItem] = []
             if hasActivityLink {
-                menu.addItem(self.menuBuilder.actionItem(
+                items.append(self.menuBuilder.actionItem(
                     title: "Open Activity",
                     action: #selector(self.target.openActivity),
                     represented: repo.title,
@@ -201,61 +255,59 @@ struct RepoSubmenuBuilder {
                 ))
             }
             if activityPreview.isEmpty == false {
-                activityPreview.forEach { menu.addItem(self.menuBuilder.activityMenuItem(for: $0)) }
+                activityPreview.forEach { items.append(self.menuBuilder.activityMenuItem(for: $0)) }
                 if activityRemainder.isEmpty == false {
-                    menu.addItem(self.repoActivityMoreMenuItem(events: activityRemainder))
+                    items.append(self.repoActivityMoreMenuItem(events: activityRemainder))
                 }
             }
-        }
-
-        menu.addItem(.separator())
-
-        if isPinned {
-            menu.addItem(self.menuBuilder.actionItem(
-                title: "Unpin",
-                action: #selector(self.target.unpinRepo),
-                represented: repo.title,
-                systemImage: "pin.slash"
-            ))
-        } else {
-            menu.addItem(self.menuBuilder.actionItem(
+            return items
+        case .pinToggle:
+            if isPinned {
+                return [self.menuBuilder.actionItem(
+                    title: "Unpin",
+                    action: #selector(self.target.unpinRepo),
+                    represented: repo.title,
+                    systemImage: "pin.slash"
+                )]
+            }
+            return [self.menuBuilder.actionItem(
                 title: "Pin",
                 action: #selector(self.target.pinRepo),
                 represented: repo.title,
                 systemImage: "pin"
-            ))
-        }
-        menu.addItem(self.menuBuilder.actionItem(
-            title: "Hide",
-            action: #selector(self.target.hideRepo),
-            represented: repo.title,
-            systemImage: "eye.slash"
-        ))
-
-        if isPinned {
+            )]
+        case .hideRepo:
+            return [self.menuBuilder.actionItem(
+                title: "Hide",
+                action: #selector(self.target.hideRepo),
+                represented: repo.title,
+                systemImage: "eye.slash"
+            )]
+        case .moveUp:
+            guard isPinned else { return [] }
             let pins = self.appState.session.settings.repoList.pinnedRepositories
-            if let index = pins.firstIndex(of: repo.title) {
-                let moveUp = self.menuBuilder.actionItem(
-                    title: "Move Up",
-                    action: #selector(self.target.moveRepoUp),
-                    represented: repo.title,
-                    systemImage: "arrow.up"
-                )
-                moveUp.isEnabled = index > 0
-                let moveDown = self.menuBuilder.actionItem(
-                    title: "Move Down",
-                    action: #selector(self.target.moveRepoDown),
-                    represented: repo.title,
-                    systemImage: "arrow.down"
-                )
-                moveDown.isEnabled = index < pins.count - 1
-                menu.addItem(.separator())
-                menu.addItem(moveUp)
-                menu.addItem(moveDown)
-            }
+            guard let index = pins.firstIndex(of: repo.title) else { return [] }
+            let moveUp = self.menuBuilder.actionItem(
+                title: "Move Up",
+                action: #selector(self.target.moveRepoUp),
+                represented: repo.title,
+                systemImage: "arrow.up"
+            )
+            moveUp.isEnabled = index > 0
+            return [moveUp]
+        case .moveDown:
+            guard isPinned else { return [] }
+            let pins = self.appState.session.settings.repoList.pinnedRepositories
+            guard let index = pins.firstIndex(of: repo.title) else { return [] }
+            let moveDown = self.menuBuilder.actionItem(
+                title: "Move Down",
+                action: #selector(self.target.moveRepoDown),
+                represented: repo.title,
+                systemImage: "arrow.down"
+            )
+            moveDown.isEnabled = index < pins.count - 1
+            return [moveDown]
         }
-
-        return menu
     }
 
     private func branchesSubmenuItem(for local: LocalRepoStatus, fullName: String, badgeText: String?) -> NSMenuItem {

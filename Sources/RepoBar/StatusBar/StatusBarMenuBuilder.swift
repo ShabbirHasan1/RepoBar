@@ -65,13 +65,68 @@ final class StatusBarMenuBuilder {
         menu.removeAllItems()
         let session = self.appState.session
         let settings = session.settings
+        let customization = settings.menuCustomization.normalized()
+        let blocks = self.mainMenuBlocks(repos: repos, settings: settings, customization: customization)
+        self.flattenMainMenuBlocks(blocks).forEach { menu.addItem($0) }
+    }
 
-        let hasContributionHeatmap = session.contributionHeatmap.isEmpty == false
-        let shouldShowContributionHeader = settings.appearance.showContributionHeader
-            && (hasContributionHeatmap || session.contributionError == nil)
-        let username = self.currentUsername()
-        let displayName = self.currentDisplayName()
-        if shouldShowContributionHeader, let username, let displayName {
+    private struct MainMenuBlock {
+        let group: MainMenuItemGroup
+        let items: [NSMenuItem]
+    }
+
+    private func mainMenuBlocks(
+        repos: [RepositoryDisplayModel],
+        settings: UserSettings,
+        customization: MenuCustomization
+    ) -> [MainMenuBlock] {
+        let session = self.appState.session
+        var blocks: [MainMenuBlock] = []
+        for itemID in customization.mainMenuOrder {
+            if customization.hiddenMainMenuItems.contains(itemID), !itemID.isRequired { continue }
+            let items = self.mainMenuItems(for: itemID, repos: repos, settings: settings, session: session)
+            if items.isEmpty { continue }
+            blocks.append(MainMenuBlock(group: itemID.group, items: items))
+        }
+        return blocks
+    }
+
+    private func mainMenuItems(
+        for itemID: MainMenuItemID,
+        repos: [RepositoryDisplayModel],
+        settings: UserSettings,
+        session: Session
+    ) -> [NSMenuItem] {
+        switch itemID {
+        case .loggedOutPrompt:
+            switch session.account {
+            case .loggedOut, .loggingIn:
+                let loggedOut = MenuLoggedOutView()
+                    .padding(.horizontal, MenuStyle.sectionHorizontalPadding)
+                    .padding(.vertical, MenuStyle.sectionVerticalPadding)
+                return [self.viewItem(for: loggedOut, enabled: false)]
+            case .loggedIn:
+                return []
+            }
+        case .signInAction:
+            switch session.account {
+            case .loggedOut:
+                return [self.actionItem(title: "Sign in to GitHub", action: #selector(self.target.signIn))]
+            case .loggingIn:
+                let signInItem = self.actionItem(title: "Signing in…", action: #selector(self.target.signIn))
+                signInItem.isEnabled = false
+                return [signInItem]
+            case .loggedIn:
+                return []
+            }
+        case .contributionHeader:
+            guard case .loggedIn = session.account else { return [] }
+            let hasContributionHeatmap = session.contributionHeatmap.isEmpty == false
+            let shouldShowContributionHeader = settings.appearance.showContributionHeader
+                && (hasContributionHeatmap || session.contributionError == nil)
+            let username = self.currentUsername()
+            let displayName = self.currentDisplayName()
+            guard shouldShowContributionHeader, let username, let displayName else { return [] }
             let header = ContributionHeaderView(
                 username: username,
                 displayName: displayName,
@@ -82,94 +137,79 @@ final class StatusBarMenuBuilder {
             .padding(.top, MenuStyle.headerTopPadding)
             .padding(.bottom, MenuStyle.headerBottomPadding)
             let submenu = self.contributionSubmenu(username: username, displayName: displayName)
-            menu.addItem(self.viewItem(for: header, enabled: true, highlightable: true, submenu: submenu))
-            menu.addItem(.separator())
-        }
-
-        switch session.account {
-        case .loggedOut:
-            let loggedOut = MenuLoggedOutView()
-                .padding(.horizontal, MenuStyle.sectionHorizontalPadding)
-                .padding(.vertical, MenuStyle.sectionVerticalPadding)
-            menu.addItem(self.viewItem(for: loggedOut, enabled: false))
-            menu.addItem(.separator())
-            let signInItem = self.actionItem(title: "Sign in to GitHub", action: #selector(self.target.signIn))
-            menu.addItem(signInItem)
-            menu.addItem(.separator())
-            menu.addItem(self.actionItem(title: "Preferences…", action: #selector(self.target.openPreferences), keyEquivalent: ","))
-            menu.addItem(self.actionItem(title: "About RepoBar", action: #selector(self.target.openAbout)))
-            menu.addItem(self.actionItem(title: "Quit RepoBar", action: #selector(self.target.quitApp), keyEquivalent: "q"))
-            return
-        case .loggingIn:
-            let loggedOut = MenuLoggedOutView()
-                .padding(.horizontal, MenuStyle.sectionHorizontalPadding)
-                .padding(.vertical, MenuStyle.sectionVerticalPadding)
-            menu.addItem(self.viewItem(for: loggedOut, enabled: false))
-            menu.addItem(.separator())
-            let signInItem = self.actionItem(title: "Signing in…", action: #selector(self.target.signIn))
-            signInItem.isEnabled = false
-            menu.addItem(signInItem)
-            menu.addItem(.separator())
-            menu.addItem(self.actionItem(title: "Preferences…", action: #selector(self.target.openPreferences), keyEquivalent: ","))
-            menu.addItem(self.actionItem(title: "About RepoBar", action: #selector(self.target.openAbout)))
-            menu.addItem(self.actionItem(title: "Quit RepoBar", action: #selector(self.target.quitApp), keyEquivalent: "q"))
-            return
-        case .loggedIn:
-            break
-        }
-
-        if let reset = session.rateLimitReset {
-            let banner = RateLimitBanner(reset: reset)
-                .padding(.horizontal, MenuStyle.bannerHorizontalPadding)
-                .padding(.vertical, MenuStyle.bannerVerticalPadding)
-            menu.addItem(self.viewItem(for: banner, enabled: false))
-            menu.addItem(.separator())
-        } else if let error = session.lastError {
-            let banner = ErrorBanner(message: error)
-                .padding(.horizontal, MenuStyle.bannerHorizontalPadding)
-                .padding(.vertical, MenuStyle.bannerVerticalPadding)
-            menu.addItem(self.viewItem(for: banner, enabled: false))
-            menu.addItem(.separator())
-        }
-
-        let showFilters = session.hasLoadedRepositories
-        if showFilters {
+            return [self.viewItem(for: header, enabled: true, highlightable: true, submenu: submenu)]
+        case .statusBanner:
+            guard case .loggedIn = session.account else { return [] }
+            if let reset = session.rateLimitReset {
+                let banner = RateLimitBanner(reset: reset)
+                    .padding(.horizontal, MenuStyle.bannerHorizontalPadding)
+                    .padding(.vertical, MenuStyle.bannerVerticalPadding)
+                return [self.viewItem(for: banner, enabled: false)]
+            }
+            if let error = session.lastError {
+                let banner = ErrorBanner(message: error)
+                    .padding(.horizontal, MenuStyle.bannerHorizontalPadding)
+                    .padding(.vertical, MenuStyle.bannerVerticalPadding)
+                return [self.viewItem(for: banner, enabled: false)]
+            }
+            return []
+        case .filters:
+            guard case .loggedIn = session.account else { return [] }
+            guard session.hasLoadedRepositories else { return [] }
             let filters = MenuRepoFiltersView(session: session)
                 .padding(.horizontal, 0)
                 .padding(.vertical, 0)
-            menu.addItem(self.viewItem(for: filters, enabled: true))
-            menu.addItem(.separator())
-        }
-
-        if repos.isEmpty {
-            let (title, subtitle) = self.emptyStateMessage(for: session)
-            let emptyState = MenuEmptyStateView(title: title, subtitle: subtitle)
-                .padding(.horizontal, MenuStyle.sectionHorizontalPadding)
-                .padding(.vertical, MenuStyle.sectionVerticalPadding)
-            menu.addItem(self.viewItem(for: emptyState, enabled: false))
-        } else {
+            return [self.viewItem(for: filters, enabled: true)]
+        case .repoList:
+            guard case .loggedIn = session.account else { return [] }
+            if repos.isEmpty {
+                let (title, subtitle) = self.emptyStateMessage(for: session)
+                let emptyState = MenuEmptyStateView(title: title, subtitle: subtitle)
+                    .padding(.horizontal, MenuStyle.sectionHorizontalPadding)
+                    .padding(.vertical, MenuStyle.sectionVerticalPadding)
+                return [self.viewItem(for: emptyState, enabled: false)]
+            }
+            var items: [NSMenuItem] = []
             var usedRepoKeys: Set<String> = []
             for (index, repo) in repos.enumerated() {
                 let isPinned = settings.repoList.pinnedRepositories.contains(repo.title)
                 let item = self.repoMenuItem(for: repo, isPinned: isPinned)
                 item.representedObject = repo.title
-                menu.addItem(item)
+                items.append(item)
                 if index < repos.count - 1 {
-                    menu.addItem(self.repoCardSeparator())
+                    items.append(self.repoCardSeparator())
                 }
                 usedRepoKeys.insert(repo.title)
             }
             self.repoMenuItemCache = self.repoMenuItemCache.filter { usedRepoKeys.contains($0.key) }
             self.repoSubmenuCache = self.repoSubmenuCache.filter { usedRepoKeys.contains($0.key) }
+            return items
+        case .preferences:
+            return [self.actionItem(title: "Preferences…", action: #selector(self.target.openPreferences), keyEquivalent: ",")]
+        case .about:
+            return [self.actionItem(title: "About RepoBar", action: #selector(self.target.openAbout))]
+        case .restartToUpdate:
+            guard case .loggedIn = session.account else { return [] }
+            guard SparkleController.shared.updateStatus.isUpdateReady else { return [] }
+            return [self.actionItem(title: "Restart to update", action: #selector(self.target.checkForUpdates))]
+        case .quit:
+            return [self.actionItem(title: "Quit RepoBar", action: #selector(self.target.quitApp), keyEquivalent: "q")]
         }
+    }
 
-        menu.addItem(self.paddedSeparator())
-        menu.addItem(self.actionItem(title: "Preferences…", action: #selector(self.target.openPreferences), keyEquivalent: ","))
-        menu.addItem(self.actionItem(title: "About RepoBar", action: #selector(self.target.openAbout)))
-        if SparkleController.shared.updateStatus.isUpdateReady {
-            menu.addItem(self.actionItem(title: "Restart to update", action: #selector(self.target.checkForUpdates)))
+    private func flattenMainMenuBlocks(_ blocks: [MainMenuBlock]) -> [NSMenuItem] {
+        var items: [NSMenuItem] = []
+        var lastGroup: MainMenuItemGroup?
+        for block in blocks {
+            guard block.items.isEmpty == false else { continue }
+            if let lastGroup, lastGroup != block.group, items.isEmpty == false {
+                let separator: NSMenuItem = block.group == .footer ? self.paddedSeparator() : .separator()
+                items.append(separator)
+            }
+            items.append(contentsOf: block.items)
+            lastGroup = block.group
         }
-        menu.addItem(self.actionItem(title: "Quit RepoBar", action: #selector(self.target.quitApp), keyEquivalent: "q"))
+        return items
     }
 
     func refreshMenuViewHeights(in menu: NSMenu) {

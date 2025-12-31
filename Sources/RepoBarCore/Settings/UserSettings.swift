@@ -5,6 +5,7 @@ public struct UserSettings: Equatable, Codable {
     public var heatmap = HeatmapSettings()
     public var repoList = RepoListSettings()
     public var localProjects = LocalProjectsSettings()
+    public var menuCustomization = MenuCustomization()
     public var refreshInterval: RefreshInterval = .fiveMinutes
     public var launchAtLogin = false
     public var debugPaneEnabled: Bool = false

@@ -59,6 +59,7 @@ struct MenuSettingsSignature: Hashable {
     let pinned: [String]
     let hidden: [String]
     let selection: MenuRepoSelection
+    let menuCustomization: MenuCustomization
 
     init(settings: UserSettings, selection: MenuRepoSelection) {
         self.showContributionHeader = settings.appearance.showContributionHeader
@@ -75,6 +76,7 @@ struct MenuSettingsSignature: Hashable {
         self.pinned = settings.repoList.pinnedRepositories
         self.hidden = settings.repoList.hiddenRepositories
         self.selection = selection
+        self.menuCustomization = settings.menuCustomization.normalized()
     }
 }
 
@@ -206,6 +208,7 @@ struct RepoSubmenuSignature: Hashable {
     let activityDigest: Int
     let recentCounts: RepoRecentCountSignature
     let isPinned: Bool
+    let menuCustomization: MenuCustomization
 
     init(
         repo: RepositoryDisplayModel,
@@ -236,6 +239,7 @@ struct RepoSubmenuSignature: Hashable {
         self.activityDigest = RepoSubmenuSignature.digest(events: repo.activityEvents)
         self.recentCounts = recentCounts
         self.isPinned = isPinned
+        self.menuCustomization = settings.menuCustomization.normalized()
     }
 
     private static func digest(events: [ActivityEvent]) -> Int {

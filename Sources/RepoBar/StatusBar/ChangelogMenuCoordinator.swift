@@ -54,12 +54,34 @@ final class ChangelogMenuCoordinator {
         return presentation
     }
 
+    func cachedHeadline(fullName: String) -> String? {
+        guard let parsed = self.cache[fullName]?.parsed else { return nil }
+        return ChangelogParser.headline(parsed: parsed)
+    }
+
+    func prefetchChangelog(fullName: String, localPath: URL?, releaseTag: String?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let now = Date()
+            if let cached = self.cache[fullName],
+               now.timeIntervalSince(cached.fetchedAt) <= AppLimits.Changelog.cacheTTL {
+                self.menuBuilder.updateChangelogRow(fullName: fullName, releaseTag: releaseTag)
+                return
+            }
+
+            let fetch = await self.loadChangelog(fullName: fullName, localPath: localPath)
+            self.cache[fullName] = self.makeCacheEntry(fetch: fetch)
+            self.menuBuilder.updateChangelogRow(fullName: fullName, releaseTag: releaseTag)
+        }
+    }
+
     private func refreshChangelogMenu(menu: NSMenu, entry: ChangelogMenuEntry) async {
         let now = Date()
         if let cached = self.cache[entry.fullName] {
             let isFresh = now.timeIntervalSince(cached.fetchedAt) <= AppLimits.Changelog.cacheTTL
             if isFresh {
                 self.applyResult(cached.result, to: menu)
+                self.updateChangelogRow(fullName: entry.fullName)
                 return
             }
         }
@@ -73,6 +95,7 @@ final class ChangelogMenuCoordinator {
         let fetch = await self.loadChangelog(fullName: entry.fullName, localPath: entry.localPath)
         self.cache[entry.fullName] = self.makeCacheEntry(fetch: fetch)
         self.applyResult(fetch.result, to: menu)
+        self.updateChangelogRow(fullName: entry.fullName)
     }
 
     private func applyLoading(to menu: NSMenu) {
@@ -112,6 +135,14 @@ final class ChangelogMenuCoordinator {
         let result = await task.value
         self.inflight[fullName] = nil
         return result
+    }
+
+    private func updateChangelogRow(fullName: String) {
+        let releaseTag = self.appState.session.repositories
+            .first(where: { $0.fullName == fullName })?
+            .latestRelease?
+            .tag
+        self.menuBuilder.updateChangelogRow(fullName: fullName, releaseTag: releaseTag)
     }
 
     private func fetchChangelog(fullName: String, localPath: URL?) async -> ChangelogFetchResult {

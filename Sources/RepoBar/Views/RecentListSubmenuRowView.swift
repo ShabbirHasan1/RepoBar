@@ -62,6 +62,8 @@ struct RecentListSubmenuRowView: View {
                     .font(.caption2.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(self.badgeForeground)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(self.badgeBackground, in: Capsule(style: .continuous))

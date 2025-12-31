@@ -41,6 +41,7 @@ extension StatusBarMenuBuilder {
             fullName: repo.title,
             releaseTag: repo.source.latestRelease?.tag
         )
+        let changelogHeadline = self.target.cachedChangelogHeadline(fullName: repo.title)
         let signature = RepoSubmenuSignature(
             repo: repo,
             settings: self.appState.session.settings,
@@ -55,6 +56,7 @@ extension StatusBarMenuBuilder {
                 contributors: self.target.cachedRecentListCount(fullName: repo.title, kind: .contributors)
             ),
             changelogPresentation: changelogPresentation,
+            changelogHeadline: changelogHeadline,
             isPinned: isPinned
         )
         if let cached = self.repoSubmenuCache[repo.title], cached.signature == signature {
@@ -63,6 +65,33 @@ extension StatusBarMenuBuilder {
         let menu = self.makeRepoSubmenu(for: repo, isPinned: isPinned)
         self.repoSubmenuCache[repo.title] = RepoSubmenuCacheEntry(menu: menu, signature: signature)
         return menu
+    }
+
+    func repoFullName(for menu: NSMenu) -> String? {
+        self.repoSubmenuCache.first(where: { $0.value.menu === menu })?.key
+    }
+
+    func updateChangelogRow(fullName: String, releaseTag: String?) {
+        guard let cached = self.repoSubmenuCache[fullName] else { return }
+        guard let item = cached.menu.items.first(where: {
+            guard let identifier = $0.representedObject as? RepoSubmenuRowIdentifier else { return false }
+            return identifier.fullName == fullName && identifier.kind == .changelog
+        }) else { return }
+
+        let presentation = self.target.cachedChangelogPresentation(fullName: fullName, releaseTag: releaseTag)
+        let headline = self.target.cachedChangelogHeadline(fullName: fullName)
+        let title = presentation?.title ?? "Changelog"
+        let badgeText = headline ?? presentation?.badgeText
+        let detailText = headline == nil ? presentation?.detailText : nil
+        let row = RecentListSubmenuRowView(
+            title: title,
+            systemImage: "doc.text",
+            badgeText: badgeText,
+            detailText: detailText
+        )
+        self.menuItemFactory.updateItem(item, with: row, highlightable: true, showsSubmenuIndicator: true)
+        self.refreshMenuViewHeights(in: cached.menu)
+        cached.menu.update()
     }
 
     func infoItem(_ title: String) -> NSMenuItem {

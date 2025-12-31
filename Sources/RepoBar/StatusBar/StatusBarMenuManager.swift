@@ -128,6 +128,18 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         if self.recentListCoordinator.handleMenuWillOpen(menu) { return }
         if self.localGitMenuCoordinator.handleMenuWillOpen(menu) { return }
         if self.changelogMenuCoordinator.handleMenuWillOpen(menu) { return }
+        if let fullName = self.menuBuilder.repoFullName(for: menu) {
+            let localPath = self.appState.session.localRepoIndex.status(forFullName: fullName)?.path
+            let releaseTag = self.appState.session.repositories
+                .first(where: { $0.fullName == fullName })?
+                .latestRelease?
+                .tag
+            self.changelogMenuCoordinator.prefetchChangelog(
+                fullName: fullName,
+                localPath: localPath,
+                releaseTag: releaseTag
+            )
+        }
         if menu === self.mainMenu {
             if menu.delegate == nil {
                 menu.delegate = self
@@ -221,6 +233,10 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     func cachedChangelogPresentation(fullName: String, releaseTag: String?) -> ChangelogRowPresentation? {
         self.changelogMenuCoordinator.cachedPresentation(fullName: fullName, releaseTag: releaseTag)
+    }
+
+    func cachedChangelogHeadline(fullName: String) -> String? {
+        self.changelogMenuCoordinator.cachedHeadline(fullName: fullName)
     }
 
     func cloneURL(for fullName: String) -> URL? {

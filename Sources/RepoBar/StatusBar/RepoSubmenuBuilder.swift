@@ -3,6 +3,15 @@ import OSLog
 import RepoBarCore
 import SwiftUI
 
+enum RepoSubmenuRowKind: String, Hashable {
+    case changelog
+}
+
+struct RepoSubmenuRowIdentifier: Hashable {
+    let fullName: String
+    let kind: RepoSubmenuRowKind
+}
+
 @MainActor
 struct RepoSubmenuBuilder {
     let menuBuilder: StatusBarMenuBuilder
@@ -367,13 +376,18 @@ struct RepoSubmenuBuilder {
         submenu.addItem(self.menuBuilder.infoItem("Loading…"))
 
         let title = presentation?.title ?? "Changelog"
+        let headline = self.target.cachedChangelogHeadline(fullName: fullName)
+        let badgeText = headline ?? presentation?.badgeText
+        let detailText = headline == nil ? presentation?.detailText : nil
         let row = RecentListSubmenuRowView(
             title: title,
             systemImage: "doc.text",
-            badgeText: presentation?.badgeText,
-            detailText: presentation?.detailText
+            badgeText: badgeText,
+            detailText: detailText
         )
-        return self.menuBuilder.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
+        let item = self.menuBuilder.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
+        item.representedObject = RepoSubmenuRowIdentifier(fullName: fullName, kind: .changelog)
+        return item
     }
 
     private func loadingItem() -> NSMenuItem {

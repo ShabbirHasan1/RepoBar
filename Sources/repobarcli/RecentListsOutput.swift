@@ -9,6 +9,13 @@ struct RepoRecentRow {
     let url: URL?
 }
 
+private struct RecentTableHeaders {
+    let updated: String
+    let primary: String
+    let secondary: String
+    let tertiary: String
+}
+
 func releasesTableLines(
     _ releases: [RepoReleaseSummary],
     useColor: Bool,
@@ -29,7 +36,7 @@ func releasesTableLines(
 
     return recentTableLines(
         rows,
-        headers: ("RELEASED", "TAG", "NAME", "BY"),
+        headers: .init(updated: "RELEASED", primary: "TAG", secondary: "NAME", tertiary: "BY"),
         useColor: useColor,
         includeURL: includeURL,
         primaryColor: Ansi.yellow
@@ -56,7 +63,7 @@ func workflowRunsTableLines(
 
     return recentTableLines(
         rows,
-        headers: ("UPDATED", "STATUS", "NAME", "BRANCH"),
+        headers: .init(updated: "UPDATED", primary: "STATUS", secondary: "NAME", tertiary: "BRANCH"),
         useColor: useColor,
         includeURL: includeURL,
         primaryColor: Ansi.magenta
@@ -83,7 +90,7 @@ func discussionsTableLines(
 
     return recentTableLines(
         rows,
-        headers: ("UPDATED", "CMTS", "TITLE", "BY"),
+        headers: .init(updated: "UPDATED", primary: "CMTS", secondary: "TITLE", tertiary: "BY"),
         useColor: useColor,
         includeURL: includeURL,
         primaryColor: Ansi.cyan
@@ -135,7 +142,7 @@ func branchesTableLines(
 
     return recentTableLines(
         rows,
-        headers: ("BRANCH", "SHA", "PROTECTED", ""),
+        headers: .init(updated: "BRANCH", primary: "SHA", secondary: "PROTECTED", tertiary: ""),
         useColor: useColor,
         includeURL: includeURL,
         primaryColor: Ansi.cyan,
@@ -201,7 +208,7 @@ func commitsTableLines(
 
     return recentTableLines(
         rows,
-        headers: ("DATE", "SHA", "MESSAGE", "BY"),
+        headers: .init(updated: "DATE", primary: "SHA", secondary: "MESSAGE", tertiary: "BY"),
         useColor: useColor,
         includeURL: includeURL,
         primaryColor: Ansi.gray
@@ -228,7 +235,7 @@ func activityTableLines(
 
     return recentTableLines(
         rows,
-        headers: ("DATE", "BY", "TITLE", "TYPE"),
+        headers: .init(updated: "DATE", primary: "BY", secondary: "TITLE", tertiary: "TYPE"),
         useColor: useColor,
         includeURL: includeURL,
         primaryColor: Ansi.gray
@@ -362,7 +369,7 @@ func globalActivityTableLines(
 
 private func recentTableLines(
     _ rows: [RepoRecentRow],
-    headers: (String, String, String, String),
+    headers: RecentTableHeaders,
     useColor: Bool,
     includeURL: Bool,
     primaryColor: Ansi.Code,
@@ -370,10 +377,10 @@ private func recentTableLines(
     omitURLColumn: Bool = false,
     omitTertiaryHeaderIfEmpty: Bool = true
 ) -> [String] {
-    let updatedHeader = headers.0
-    let primaryHeader = headers.1
-    let secondaryHeader = headers.2
-    let tertiaryHeader = headers.3
+    let updatedHeader = headers.updated
+    let primaryHeader = headers.primary
+    let secondaryHeader = headers.secondary
+    let tertiaryHeader = headers.tertiary
 
     let updatedWidth = max(updatedHeader.count, rows.map(\.updatedLabel.count).max() ?? 1)
     let primaryWidth = max(primaryHeader.count, rows.map(\.primaryLabel.count).max() ?? 1)

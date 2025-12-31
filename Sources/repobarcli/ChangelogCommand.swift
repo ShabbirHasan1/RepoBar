@@ -127,8 +127,11 @@ private func gitRootURL() -> URL? {
     guard process.terminationStatus == 0 else { return nil }
 
     let data = output.fileHandleForReading.readDataToEndOfFile()
-    let path = String(decoding: data, as: UTF8.self)
-        .trimmingCharacters(in: .whitespacesAndNewlines)
-    guard path.isEmpty == false else { return nil }
+    guard let path = String(bytes: data, encoding: .utf8)?
+        .trimmingCharacters(in: .whitespacesAndNewlines),
+        path.isEmpty == false
+    else {
+        return nil
+    }
     return URL(fileURLWithPath: path, isDirectory: true)
 }

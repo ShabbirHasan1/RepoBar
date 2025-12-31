@@ -124,5 +124,5 @@ private func captureStdout(_ work: () async throws -> Void) async throws -> Stri
     pipe.fileHandleForWriting.closeFile()
 
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
-    return String(decoding: data, as: UTF8.self)
+    return String(bytes: data, encoding: .utf8) ?? ""
 }

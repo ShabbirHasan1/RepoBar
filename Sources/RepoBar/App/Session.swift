@@ -16,6 +16,7 @@ final class Session {
     var contributionHeatmap: [HeatmapCell] = []
     var contributionUser: String?
     var contributionError: String?
+    var contributionIsLoading = false
     var globalActivityEvents: [ActivityEvent] = []
     var globalActivityError: String?
     var globalCommitEvents: [RepoCommitSummary] = []

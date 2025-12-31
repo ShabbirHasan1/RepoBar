@@ -162,6 +162,12 @@ final class StatusBarMenuBuilder {
             return [self.viewItem(for: filters, enabled: true)]
         case .repoList:
             guard case .loggedIn = session.account else { return [] }
+            if !session.hasLoadedRepositories {
+                let loading = MenuLoadingRowView()
+                    .padding(.horizontal, MenuStyle.sectionHorizontalPadding)
+                    .padding(.vertical, MenuStyle.sectionVerticalPadding)
+                return [self.viewItem(for: loading, enabled: false)]
+            }
             if repos.isEmpty {
                 let (title, subtitle) = self.emptyStateMessage(for: session)
                 let emptyState = MenuEmptyStateView(title: title, subtitle: subtitle)

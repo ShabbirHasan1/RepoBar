@@ -10,7 +10,7 @@ final class ChangelogMenuCoordinator {
     private let menuItemFactory: MenuItemViewFactory
     private var menus: [ObjectIdentifier: ChangelogMenuEntry] = [:]
     private var cache: [String: ChangelogCacheEntry] = [:]
-    private var inflight: [String: Task<ChangelogResult, Never>] = [:]
+    private var inflight: [String: Task<ChangelogFetchResult, Never>] = [:]
 
     init(appState: AppState, menuBuilder: StatusBarMenuBuilder, menuItemFactory: MenuItemViewFactory) {
         self.appState = appState
@@ -69,9 +69,9 @@ final class ChangelogMenuCoordinator {
             self.applyLoading(to: menu)
         }
 
-        let result = await self.loadChangelog(fullName: entry.fullName, localPath: entry.localPath)
-        self.cache[entry.fullName] = self.makeCacheEntry(result: result)
-        self.applyResult(result, to: menu)
+        let fetch = await self.loadChangelog(fullName: entry.fullName, localPath: entry.localPath)
+        self.cache[entry.fullName] = self.makeCacheEntry(fetch: fetch)
+        self.applyResult(fetch.result, to: menu)
     }
 
     private func applyLoading(to menu: NSMenu) {
@@ -100,7 +100,7 @@ final class ChangelogMenuCoordinator {
         menu.update()
     }
 
-    private func loadChangelog(fullName: String, localPath: URL?) async -> ChangelogResult {
+    private func loadChangelog(fullName: String, localPath: URL?) async -> ChangelogFetchResult {
         if let task = self.inflight[fullName] {
             return await task.value
         }
@@ -113,46 +113,56 @@ final class ChangelogMenuCoordinator {
         return result
     }
 
-    private func fetchChangelog(fullName: String, localPath: URL?) async -> ChangelogResult {
-        if let localPath, let localContent = self.loadLocalChangelog(root: localPath) {
-            return .content(localContent)
+    private func fetchChangelog(fullName: String, localPath: URL?) async -> ChangelogFetchResult {
+        if let localPath, let localResult = self.loadLocalChangelog(root: localPath) {
+            return ChangelogFetchResult(result: .content(localResult.content), parsed: localResult.parsed)
         }
 
-        guard case .loggedIn = self.appState.session.account else { return .signedOut }
+        guard case .loggedIn = self.appState.session.account else {
+            return ChangelogFetchResult(result: .signedOut, parsed: nil)
+        }
         guard let (owner, name) = self.ownerAndName(from: fullName) else {
-            return .failure("Invalid repository")
+            return ChangelogFetchResult(result: .failure("Invalid repository"), parsed: nil)
         }
 
         do {
             let items = try await self.appState.github.repoContents(owner: owner, name: name)
-            guard let match = self.matchingChangelogItem(in: items) else { return .missing }
+            guard let match = self.matchingChangelogItem(in: items) else {
+                return ChangelogFetchResult(result: .missing, parsed: nil)
+            }
             let data = try await self.appState.github.repoFileContents(owner: owner, name: name, path: match.path)
             let text = String(decoding: data, as: UTF8.self)
-            guard text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { return .missing }
+            guard text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else {
+                return ChangelogFetchResult(result: .missing, parsed: nil)
+            }
             let (truncatedText, isTruncated) = self.truncateMarkdown(text)
-            return .content(ChangelogContent(
+            let content = ChangelogContent(
                 fileName: match.name,
                 markdown: truncatedText,
                 source: .remote,
                 isTruncated: isTruncated
-            ))
+            )
+            let parsed = ChangelogParser.parse(markdown: text)
+            return ChangelogFetchResult(result: .content(content), parsed: parsed)
         } catch {
-            return .failure(error.userFacingMessage)
+            return ChangelogFetchResult(result: .failure(error.userFacingMessage), parsed: nil)
         }
     }
 
-    private func loadLocalChangelog(root: URL) -> ChangelogContent? {
+    private func loadLocalChangelog(root: URL) -> ChangelogLocalResult? {
         guard let fileURL = self.localChangelogURL(root: root) else { return nil }
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
         let text = String(decoding: data, as: UTF8.self)
         guard text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { return nil }
         let (truncatedText, isTruncated) = self.truncateMarkdown(text)
-        return ChangelogContent(
+        let content = ChangelogContent(
             fileName: fileURL.lastPathComponent,
             markdown: truncatedText,
             source: .local,
             isTruncated: isTruncated
         )
+        let parsed = ChangelogParser.parse(markdown: text)
+        return ChangelogLocalResult(content: content, parsed: parsed)
     }
 
     private func localChangelogURL(root: URL) -> URL? {
@@ -212,17 +222,11 @@ final class ChangelogMenuCoordinator {
         "changelog"
     ]
 
-    private func makeCacheEntry(result: ChangelogResult) -> ChangelogCacheEntry {
-        let parsed: ChangelogParsed? = switch result {
-        case let .content(content):
-            ChangelogParser.parse(markdown: content.markdown)
-        default:
-            nil
-        }
+    private func makeCacheEntry(fetch: ChangelogFetchResult) -> ChangelogCacheEntry {
         return ChangelogCacheEntry(
             fetchedAt: Date(),
-            result: result,
-            parsed: parsed,
+            result: fetch.result,
+            parsed: fetch.parsed,
             presentationCache: [:]
         )
     }
@@ -245,6 +249,16 @@ private struct ChangelogCacheEntry {
     let result: ChangelogResult
     let parsed: ChangelogParsed?
     var presentationCache: [String: ChangelogRowPresentation]
+}
+
+private struct ChangelogFetchResult {
+    let result: ChangelogResult
+    let parsed: ChangelogParsed?
+}
+
+private struct ChangelogLocalResult {
+    let content: ChangelogContent
+    let parsed: ChangelogParsed
 }
 
 private enum ChangelogResult {

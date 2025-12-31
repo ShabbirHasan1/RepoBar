@@ -62,14 +62,34 @@ private struct MarkdownTextView: View {
     }
 
     private var attributedText: AttributedString {
-        if let parsed = try? AttributedString(markdown: self.markdown) {
+        let source = self.markdownWithHardBreaks
+        if let parsed = try? AttributedString(markdown: source) {
             return parsed
         }
         var inlineOptions = AttributedString.MarkdownParsingOptions()
         inlineOptions.interpretedSyntax = .inlineOnlyPreservingWhitespace
-        if let parsed = try? AttributedString(markdown: self.markdown, options: inlineOptions) {
+        if let parsed = try? AttributedString(markdown: source, options: inlineOptions) {
             return parsed
         }
-        return AttributedString(self.markdown)
+        return AttributedString(source)
+    }
+
+    private var markdownWithHardBreaks: String {
+        let normalized = self.markdown.replacingOccurrences(of: "\r\n", with: "\n")
+        let lines = normalized.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        var inCodeBlock = false
+        let processed = lines.map { rawLine -> String in
+            let line = String(rawLine)
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("```") {
+                inCodeBlock.toggle()
+                return line
+            }
+            if inCodeBlock || trimmed.isEmpty {
+                return line
+            }
+            return "\(line)  "
+        }
+        return processed.joined(separator: "\n")
     }
 }

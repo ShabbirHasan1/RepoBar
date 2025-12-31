@@ -1,5 +1,5 @@
-import Testing
 @testable import RepoBar
+import Testing
 
 struct ChangelogParserTests {
     @Test("Unreleased entries produce badge count")

@@ -7,7 +7,6 @@ struct ContributionHeaderView: View {
     let displayName: String
     @Bindable var session: Session
     let appState: AppState
-    @State private var isLoading: Bool
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     init(
@@ -20,12 +19,10 @@ struct ContributionHeaderView: View {
         self.displayName = displayName
         self.session = session
         self.appState = appState
-        let hasHeatmap = session.contributionUser == username && !session.contributionHeatmap.isEmpty
-        _isLoading = State(initialValue: !hasHeatmap)
     }
 
     var body: some View {
-        if !self.hasCachedHeatmap, !self.isLoading {
+        if !self.hasCachedHeatmap, !self.session.contributionIsLoading {
             EmptyView()
         } else {
             VStack(alignment: .leading, spacing: 4) {
@@ -35,14 +32,8 @@ struct ContributionHeaderView: View {
                 self.content
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .task(id: self.session.hasLoadedRepositories) {
-                guard self.session.hasLoadedRepositories else { return }
-                let hasHeatmap = self.hasCachedHeatmap
-                self.isLoading = !hasHeatmap
+            .task(id: self.username) {
                 await self.appState.loadContributionHeatmapIfNeeded(for: self.username)
-                await MainActor.run {
-                    self.isLoading = false
-                }
             }
         }
     }
@@ -51,7 +42,7 @@ struct ContributionHeaderView: View {
     private var content: some View {
         let filtered = HeatmapFilter.filter(self.session.contributionHeatmap, range: self.session.heatmapRange)
         let hasHeatmap = self.hasCachedHeatmap
-        let showProgress = (self.session.hasLoadedRepositories == false || self.isLoading) && !hasHeatmap
+        let showProgress = self.session.contributionIsLoading && !hasHeatmap
 
         ZStack {
             VStack(spacing: 4) {

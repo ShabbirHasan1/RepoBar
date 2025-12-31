@@ -112,3 +112,30 @@ struct MenuInfoTextRowView: View {
         .padding(.vertical, MenuStyle.cardVerticalPadding)
     }
 }
+
+struct MenuLoadingRowView: View {
+    let text: String
+
+    init(text: String = "Loading repositories…") {
+        self.text = text
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: MenuStyle.submenuIconSpacing) {
+            SubmenuIconPlaceholderView(font: .caption)
+
+            ProgressView()
+                .controlSize(.small)
+
+            Text(self.text)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, MenuStyle.cardHorizontalPadding)
+        .padding(.vertical, MenuStyle.cardVerticalPadding)
+    }
+}

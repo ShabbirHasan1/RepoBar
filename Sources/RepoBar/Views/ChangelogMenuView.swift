@@ -55,7 +55,6 @@ private struct MarkdownTextView: View {
 
     var body: some View {
         Text(self.attributedText)
-            .font(.caption)
             .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
@@ -66,10 +65,20 @@ private struct MarkdownTextView: View {
         var options = AttributedString.MarkdownParsingOptions()
         options.interpretedSyntax = .full
         options.failurePolicy = .returnPartiallyParsedIfPossible
-        if let parsed = try? AttributedString(markdown: source, options: options) {
-            return parsed
+        let parsed = (try? AttributedString(markdown: source, options: options))
+            ?? AttributedString(source)
+        return self.applyBaseFont(to: parsed)
+    }
+
+    private func applyBaseFont(to text: AttributedString) -> AttributedString {
+        var output = text
+        let baseFont: Font = .caption
+        for run in output.runs {
+            if run.font == nil {
+                output[run.range].font = baseFont
+            }
         }
-        return AttributedString(source)
+        return output
     }
 
     private var markdownWithHardBreaks: String {

@@ -15,8 +15,6 @@ targets:
     platform: iOS
     sources:
       - Sources
-    resources:
-      - Resources
     dependencies:
       - package: RepoBar
         product: RepoBarCore
@@ -39,6 +37,7 @@ targets:
           - CFBundleURLName: com.steipete.repobar.auth
             CFBundleURLSchemes:
               - repobar
+        UILaunchScreen: {}
         RepoBarKeychainAccessGroup: "$(AppIdentifierPrefix)com.steipete.repobar.shared"
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: true

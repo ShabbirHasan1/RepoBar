@@ -28,6 +28,7 @@ _Last updated: 2025-11-24_
   - Unique visitors & unique cloners (last 14 days).
   - Custom blocky heatmap (weekly/day cell style) showing commit/push activity over the last ~180–365 days; uses GitHub-like green scale.
   - Context/"…" menu to unpin.
+- **Repo submenu**: open actions, local state, recent lists, heatmap, commits/activity, and inline changelog preview (CHANGELOG.md or CHANGELOG).
 - **Header (optional)**: GitHub contribution image (`https://ghchart.rshah.org/<user>`) scaled to window width; toggle default ON.
 - **Add repo**: "+" button with autocomplete (user/org repos). Pins repo; reorder by activity recency or pin order TBD (start with pin order, recently-added).
 - **Right-click menu**: login state, Log out, Refresh now, Preferences, Check for Updates (Sparkle), Quit. Shows account (GitHub.com or GHE host).

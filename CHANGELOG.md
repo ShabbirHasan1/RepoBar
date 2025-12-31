@@ -2,6 +2,7 @@
 
 ## 0.1.1 - 2025-12-31
 
+- Add repo submenu changelog preview (CHANGELOG.md or CHANGELOG) with inline markdown rendering.
 - Fix settings login to use default GitHub credentials when blank, refresh after sign-in, and avoid stuck state.
 - iOS: fix light/dark glass styling and switch to a full-screen login layout.
 - iOS: use the modern `UILaunchScreen` plist entry to avoid letterboxed launch.
@@ -11,6 +12,7 @@
 - iOS: add `webcredentials` associated domain for HTTPS auth callbacks.
 - iOS: silence AppIntents metadata build warnings.
 - iOS: add the RepoBar logo to the login screen and app icon.
+- iOS: present the logo in a squircle with more padding on login.
 - Fix CLI: allow invoking bundled `repobarcli` directly (argv0 normalization).
 - Fix CLI auth refresh: show actionable error when refresh response is missing tokens.
 - Add Settings installer to link `repobar` CLI into common Homebrew paths.

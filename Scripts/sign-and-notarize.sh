@@ -3,8 +3,8 @@ set -euo pipefail
 
 APP_NAME="RepoBar"
 APP_IDENTITY="Developer ID Application: Peter Steinberger (Y5PE65HELJ)"
-APP_BUNDLE="RepoBar.app"
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+cd "$ROOT"
 source "$ROOT/version.env"
 ZIP_NAME="RepoBar-${MARKETING_VERSION}.zip"
 DSYM_ZIP="RepoBar-${MARKETING_VERSION}.dSYM.zip"
@@ -32,6 +32,24 @@ trap 'rm -f /tmp/repobar-api-key.p8 /tmp/RepoBarNotarize.zip' EXIT
 
 swift build -c release --arch arm64 --arch x86_64
 SKIP_BUILD=1 ./Scripts/package_app.sh release
+
+# SwiftPM output locations vary (Xcode toolchain + SwiftPM version).
+# Resolve the produced app bundle explicitly instead of assuming `./RepoBar.app`.
+APP_BUNDLE=""
+for candidate in \
+  ".build/apple/Products/Release/${APP_NAME}.app" \
+  ".build/release/${APP_NAME}.app" \
+  ".build/arm64-apple-macosx/release/${APP_NAME}.app" \
+  ".build/x86_64-apple-macosx/release/${APP_NAME}.app"; do
+  if [[ -d "$candidate" ]]; then
+    APP_BUNDLE="$candidate"
+    break
+  fi
+done
+if [[ -z "$APP_BUNDLE" ]]; then
+  echo "ERROR: app bundle not found (looked in common SwiftPM release locations)" >&2
+  exit 1
+fi
 
 echo "Signing with $APP_IDENTITY"
 ./Scripts/codesign_app.sh "$APP_BUNDLE" "$APP_IDENTITY"

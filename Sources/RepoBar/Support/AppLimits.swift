@@ -3,7 +3,7 @@ import Foundation
 enum AppLimits {
     enum GlobalActivity {
         static let limit: Int = 25
-        static let previewLimit: Int = 5
+        static let previewLimit: Int = 20
     }
 
     enum GlobalCommits {

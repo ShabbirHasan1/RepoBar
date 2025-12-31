@@ -67,6 +67,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         self.mainMenu = menu
         self.statusItem = statusItem
         statusItem.menu = menu
+        self.prepareMainMenuIfNeeded(menu)
         self.logMenuEvent("attachMainMenu statusItem=\(self.objectID(statusItem)) menuItems=\(menu.items.count)")
     }
 
@@ -296,6 +297,17 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
     private func logMenuEvent(_ message: String) {
         self.logger.info("\(message)")
         Task { await DiagnosticsLogger.shared.message(message) }
+    }
+
+    private func prepareMainMenuIfNeeded(_ menu: NSMenu) {
+        let isMenuTooSmall = menu.items.count < Self.minimumMainMenuItems
+        if self.lastMainMenuSignature == nil || menu.items.isEmpty || isMenuTooSmall {
+            let plan = self.menuBuilder.mainMenuPlan()
+            self.menuBuilder.populateMainMenu(menu, repos: plan.repos)
+            self.lastMainMenuSignature = plan.signature
+            self.menuBuilder.refreshMenuViewHeights(in: menu)
+            menu.update()
+        }
     }
 
     private func objectID(_ object: AnyObject?) -> String {

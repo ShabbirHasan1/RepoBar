@@ -29,8 +29,13 @@ public enum PathFormatter {
     }
 
     private static func userHomeCandidates() -> [String] {
-        let fileManagerHome = FileManager.default.homeDirectoryForCurrentUser.path
-        let fileManagerHomeResolved = FileManager.default.homeDirectoryForCurrentUser.resolvingSymlinksInPath().path
+        #if os(macOS)
+            let fileManagerHome = FileManager.default.homeDirectoryForCurrentUser.path
+            let fileManagerHomeResolved = FileManager.default.homeDirectoryForCurrentUser.resolvingSymlinksInPath().path
+        #else
+            let fileManagerHome = NSHomeDirectory()
+            let fileManagerHomeResolved = fileManagerHome
+        #endif
 
         var candidates: [String] = []
         #if os(macOS)

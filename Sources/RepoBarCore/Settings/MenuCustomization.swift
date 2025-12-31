@@ -155,7 +155,8 @@ public enum RepoSubmenuItemID: String, CaseIterable, Codable, Hashable, Sendable
         switch self {
         case .openOnGitHub: .open
         case .openInFinder, .openInTerminal, .checkoutRepo, .localState, .worktrees: .local
-        case .issues, .pulls, .releases, .changelog, .ciRuns, .discussions, .tags, .branches, .contributors: .lists
+        case .changelog: .open
+        case .issues, .pulls, .releases, .ciRuns, .discussions, .tags, .branches, .contributors: .lists
         case .heatmap: .heatmap
         case .commits: .commits
         case .activity: .activity
@@ -173,8 +174,17 @@ public struct MenuCustomization: Equatable, Codable, Hashable, Sendable {
     public init() {}
 
     public mutating func normalize() {
+        let originalRepoOrder = self.repoSubmenuOrder
         self.mainMenuOrder = Self.normalizedOrder(self.mainMenuOrder, defaults: Self.defaultMainMenuOrder)
         self.repoSubmenuOrder = Self.normalizedOrder(self.repoSubmenuOrder, defaults: Self.defaultRepoSubmenuOrder)
+        if originalRepoOrder.contains(.changelog) == false {
+            self.repoSubmenuOrder.removeAll { $0 == .changelog }
+            if let openIndex = self.repoSubmenuOrder.firstIndex(of: .openOnGitHub) {
+                self.repoSubmenuOrder.insert(.changelog, at: openIndex + 1)
+            } else {
+                self.repoSubmenuOrder.insert(.changelog, at: 0)
+            }
+        }
     }
 
     public func normalized() -> MenuCustomization {
@@ -204,6 +214,7 @@ public struct MenuCustomization: Equatable, Codable, Hashable, Sendable {
 
     public static let defaultRepoSubmenuOrder: [RepoSubmenuItemID] = [
         .openOnGitHub,
+        .changelog,
         .openInFinder,
         .openInTerminal,
         .checkoutRepo,

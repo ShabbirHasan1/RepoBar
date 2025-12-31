@@ -37,6 +37,10 @@ extension StatusBarMenuBuilder {
     }
 
     func repoSubmenu(for repo: RepositoryDisplayModel, isPinned: Bool) -> NSMenu {
+        let changelogPresentation = self.target.cachedChangelogPresentation(
+            fullName: repo.title,
+            releaseTag: repo.source.latestRelease?.tag
+        )
         let signature = RepoSubmenuSignature(
             repo: repo,
             settings: self.appState.session.settings,
@@ -50,6 +54,7 @@ extension StatusBarMenuBuilder {
                 branches: self.target.cachedRecentListCount(fullName: repo.title, kind: .branches),
                 contributors: self.target.cachedRecentListCount(fullName: repo.title, kind: .contributors)
             ),
+            changelogPresentation: changelogPresentation,
             isPinned: isPinned
         )
         if let cached = self.repoSubmenuCache[repo.title], cached.signature == signature {

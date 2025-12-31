@@ -144,7 +144,15 @@ struct RepoSubmenuBuilder {
                 badgeText: cachedReleaseCount.flatMap { $0 > 0 ? String($0) : nil }
             ))]
         case .changelog:
-            return [self.changelogSubmenuItem(fullName: repo.title, localStatus: local)]
+            let presentation = self.target.cachedChangelogPresentation(
+                fullName: repo.title,
+                releaseTag: repo.source.latestRelease?.tag
+            )
+            return [self.changelogSubmenuItem(
+                fullName: repo.title,
+                localStatus: local,
+                presentation: presentation
+            )]
         case .ciRuns:
             let runBadge = repo.ciRunCount.flatMap { $0 > 0 ? String($0) : nil }
             return [self.recentListSubmenuItem(RecentListConfig(
@@ -344,17 +352,23 @@ struct RepoSubmenuBuilder {
         return self.menuBuilder.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
     }
 
-    private func changelogSubmenuItem(fullName: String, localStatus: LocalRepoStatus?) -> NSMenuItem {
+    private func changelogSubmenuItem(
+        fullName: String,
+        localStatus: LocalRepoStatus?,
+        presentation: ChangelogRowPresentation?
+    ) -> NSMenuItem {
         let submenu = NSMenu()
         submenu.autoenablesItems = false
         submenu.delegate = self.target
         self.target.registerChangelogMenu(submenu, fullName: fullName, localStatus: localStatus)
         submenu.addItem(self.menuBuilder.infoItem("Loading…"))
 
+        let title = presentation?.title ?? "Changelog"
         let row = RecentListSubmenuRowView(
-            title: "Changelog",
+            title: title,
             systemImage: "doc.text",
-            badgeText: nil
+            badgeText: presentation?.badgeText,
+            detailText: presentation?.detailText
         )
         return self.menuBuilder.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
     }

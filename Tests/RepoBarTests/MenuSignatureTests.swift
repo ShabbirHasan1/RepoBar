@@ -39,6 +39,7 @@ struct MenuSignatureTests {
                 branches: nil,
                 contributors: nil
             ),
+            changelogPresentation: nil,
             isPinned: false
         )
 
@@ -72,6 +73,7 @@ struct MenuSignatureTests {
                 branches: nil,
                 contributors: nil
             ),
+            changelogPresentation: nil,
             isPinned: false
         )
 

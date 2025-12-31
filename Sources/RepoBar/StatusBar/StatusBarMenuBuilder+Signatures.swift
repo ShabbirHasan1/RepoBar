@@ -207,6 +207,7 @@ struct RepoSubmenuSignature: Hashable {
     let heatmapRangeEnd: TimeInterval
     let activityDigest: Int
     let recentCounts: RepoRecentCountSignature
+    let changelogPresentation: ChangelogRowPresentation?
     let isPinned: Bool
     let menuCustomization: MenuCustomization
 
@@ -215,6 +216,7 @@ struct RepoSubmenuSignature: Hashable {
         settings: UserSettings,
         heatmapRange: HeatmapRange,
         recentCounts: RepoRecentCountSignature,
+        changelogPresentation: ChangelogRowPresentation?,
         isPinned: Bool
     ) {
         self.fullName = repo.title
@@ -238,6 +240,7 @@ struct RepoSubmenuSignature: Hashable {
         self.heatmapRangeEnd = heatmapRange.end.timeIntervalSinceReferenceDate
         self.activityDigest = RepoSubmenuSignature.digest(events: repo.activityEvents)
         self.recentCounts = recentCounts
+        self.changelogPresentation = changelogPresentation
         self.isPinned = isPinned
         self.menuCustomization = settings.menuCustomization.normalized()
     }

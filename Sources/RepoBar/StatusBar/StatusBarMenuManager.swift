@@ -217,6 +217,10 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         self.changelogMenuCoordinator.registerChangelogMenu(menu, fullName: fullName, localStatus: localStatus)
     }
 
+    func cachedChangelogPresentation(fullName: String, releaseTag: String?) -> ChangelogRowPresentation? {
+        self.changelogMenuCoordinator.cachedPresentation(fullName: fullName, releaseTag: releaseTag)
+    }
+
     func cloneURL(for fullName: String) -> URL? {
         let host = self.appState.session.settings.githubHost
         var url = host.appendingPathComponent(fullName)

@@ -36,7 +36,7 @@ enum AppLimits {
 
     enum Changelog {
         static let maxCharacters: Int = 4000
-        static let maxLines: Int = 30
+        static let maxLines: Int = 80
         static let cacheTTL: TimeInterval = 10 * 60
     }
 

@@ -40,6 +40,20 @@ final class ChangelogMenuCoordinator {
         return true
     }
 
+    func cachedPresentation(fullName: String, releaseTag: String?) -> ChangelogRowPresentation? {
+        guard var entry = self.cache[fullName],
+              let parsed = entry.parsed
+        else { return nil }
+        let key = releaseTag ?? "__none__"
+        if let cached = entry.presentationCache[key] {
+            return cached
+        }
+        guard let presentation = ChangelogParser.presentation(parsed: parsed, releaseTag: releaseTag) else { return nil }
+        entry.presentationCache[key] = presentation
+        self.cache[fullName] = entry
+        return presentation
+    }
+
     private func refreshChangelogMenu(menu: NSMenu, entry: ChangelogMenuEntry) async {
         let now = Date()
         if let cached = self.cache[entry.fullName],
@@ -56,7 +70,7 @@ final class ChangelogMenuCoordinator {
         }
 
         let result = await self.loadChangelog(fullName: entry.fullName, localPath: entry.localPath)
-        self.cache[entry.fullName] = ChangelogCacheEntry(fetchedAt: Date(), result: result)
+        self.cache[entry.fullName] = self.makeCacheEntry(result: result)
         self.applyResult(result, to: menu)
     }
 
@@ -77,7 +91,7 @@ final class ChangelogMenuCoordinator {
         case let .failure(message):
             menu.addItem(self.menuBuilder.infoMessageItem("Changelog failed: \(message)"))
         case let .content(content):
-            let view = ChangelogMenuView(content: content, lineLimit: AppLimits.Changelog.maxLines)
+            let view = ChangelogMenuView(content: content)
             menu.addItem(self.menuItemFactory.makeItem(for: view, enabled: false))
         }
         if menu.items.contains(where: { $0.view != nil }) {
@@ -197,6 +211,21 @@ final class ChangelogMenuCoordinator {
         "changelog.md",
         "changelog"
     ]
+
+    private func makeCacheEntry(result: ChangelogResult) -> ChangelogCacheEntry {
+        let parsed: ChangelogParsed? = switch result {
+        case let .content(content):
+            ChangelogParser.parse(markdown: content.markdown)
+        default:
+            nil
+        }
+        return ChangelogCacheEntry(
+            fetchedAt: Date(),
+            result: result,
+            parsed: parsed,
+            presentationCache: [:]
+        )
+    }
 }
 
 private final class ChangelogMenuEntry {
@@ -214,6 +243,8 @@ private final class ChangelogMenuEntry {
 private struct ChangelogCacheEntry {
     let fetchedAt: Date
     let result: ChangelogResult
+    let parsed: ChangelogParsed?
+    var presentationCache: [String: ChangelogRowPresentation]
 }
 
 private enum ChangelogResult {

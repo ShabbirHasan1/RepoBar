@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ChangelogMenuView: View {
     let content: ChangelogContent
-    let lineLimit: Int
 
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
@@ -29,11 +28,14 @@ struct ChangelogMenuView: View {
                 Spacer(minLength: 0)
             }
 
-            MarkdownTextView(
-                markdown: self.content.markdown,
-                lineLimit: self.lineLimit,
-                isHighlighted: self.isHighlighted
-            )
+            ScrollView(.vertical) {
+                MarkdownTextView(
+                    markdown: self.content.markdown,
+                    isHighlighted: self.isHighlighted
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: MenuStyle.changelogPreviewHeight)
 
             if self.content.isTruncated {
                 Text("Preview truncated")
@@ -49,22 +51,23 @@ struct ChangelogMenuView: View {
 
 private struct MarkdownTextView: View {
     let markdown: String
-    let lineLimit: Int
     let isHighlighted: Bool
 
     var body: some View {
         Text(self.attributedText)
             .font(.caption)
             .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
-            .lineLimit(self.lineLimit)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
     }
 
     private var attributedText: AttributedString {
-        var options = AttributedString.MarkdownParsingOptions()
-        options.interpretedSyntax = .inlineOnlyPreservingWhitespace
-        if let parsed = try? AttributedString(markdown: self.markdown, options: options) {
+        if let parsed = try? AttributedString(markdown: self.markdown) {
+            return parsed
+        }
+        var inlineOptions = AttributedString.MarkdownParsingOptions()
+        inlineOptions.interpretedSyntax = .inlineOnlyPreservingWhitespace
+        if let parsed = try? AttributedString(markdown: self.markdown, options: inlineOptions) {
             return parsed
         }
         return AttributedString(self.markdown)

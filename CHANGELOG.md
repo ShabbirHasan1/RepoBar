@@ -4,6 +4,7 @@
 
 - Fix CLI: allow invoking bundled `repobarcli` directly (argv0 normalization).
 - Fix CLI auth refresh: show actionable error when refresh response is missing tokens.
+- Add Settings installer to link `repobar` CLI into common Homebrew paths.
 - Limit "More Activity/Commits" submenus to 20 entries.
 - Include organization and collaborator repositories in repo lists.
 

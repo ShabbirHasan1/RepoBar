@@ -5,6 +5,8 @@ import SwiftUI
 struct AdvancedSettingsView: View {
     @Bindable var session: Session
     let appState: AppState
+    @State private var isInstallingCLI = false
+    @State private var cliStatus: String?
 
     var body: some View {
         Form {
@@ -143,6 +145,36 @@ struct AdvancedSettingsView: View {
                 Text("Scans two levels deep under the folder, fetches periodically, and can fast-forward pull clean repos.")
             }
 
+            Section {
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await self.installCLI() }
+                    } label: {
+                        if self.isInstallingCLI {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text("Install CLI")
+                        }
+                    }
+                    .disabled(self.isInstallingCLI)
+
+                    if let status = self.cliStatus {
+                        Text(status)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
+                }
+
+                Text("Install `repobar` into /usr/local/bin and /opt/homebrew/bin.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            } header: {
+                Text("CLI")
+            }
+
             #if DEBUG
                 Section {
                     Toggle("Enable debug tools", isOn: self.$session.settings.debugPaneEnabled)
@@ -162,6 +194,7 @@ struct AdvancedSettingsView: View {
         .onAppear {
             self.ensurePreferredTerminal()
             self.appState.refreshLocalProjects()
+            self.cliStatus = self.currentCLIStatus()
         }
     }
 
@@ -217,6 +250,82 @@ struct AdvancedSettingsView: View {
         }
         return matched
     }
+
+    // MARK: - CLI installer
+
+    private func currentCLIStatus() -> String? {
+        let installed = Self.cliTargets.filter { FileManager.default.fileExists(atPath: $0) }
+        guard installed.isEmpty == false else { return "Not installed yet." }
+        if installed.count == Self.cliTargets.count {
+            return "Installed in /usr/local/bin and /opt/homebrew/bin."
+        }
+        return "Installed in \(installed.joined(separator: ", "))."
+    }
+
+    private func installCLI() async {
+        guard !self.isInstallingCLI else { return }
+        self.isInstallingCLI = true
+        defer { self.isInstallingCLI = false }
+
+        let helperURL = Bundle.main.bundleURL
+            .appendingPathComponent("Contents")
+            .appendingPathComponent("MacOS")
+            .appendingPathComponent("repobarcli")
+
+        guard FileManager.default.isExecutableFile(atPath: helperURL.path) else {
+            await MainActor.run { self.cliStatus = "Helper missing; reinstall RepoBar." }
+            return
+        }
+
+        let installScript = """
+        #!/usr/bin/env bash
+        set -euo pipefail
+        HELPER="\(helperURL.path)"
+        TARGETS=("/usr/local/bin/repobar" "/opt/homebrew/bin/repobar")
+
+        for t in "${TARGETS[@]}"; do
+          mkdir -p "$(dirname "$t")"
+          ln -sf "$HELPER" "$t"
+          echo "Linked $t -> $HELPER"
+        done
+        """
+
+        do {
+            let scriptURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("install_repobar_cli.sh")
+            defer { try? FileManager.default.removeItem(at: scriptURL) }
+            try installScript.write(to: scriptURL, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
+
+            let escapedPath = scriptURL.path.replacingOccurrences(of: "\"", with: "\\\"")
+            let appleScript = "do shell script \"bash \\\"\(escapedPath)\\\"\" with administrator privileges"
+
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
+            process.arguments = ["-e", appleScript]
+            let stderrPipe = Pipe()
+            process.standardError = stderrPipe
+
+            try process.run()
+            process.waitUntilExit()
+            let status: String
+            if process.terminationStatus == 0 {
+                status = "Installed. Try: repobar --help"
+            } else {
+                let data = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+                let msg = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+                status = "Failed: \(msg ?? "error")"
+            }
+            await MainActor.run { self.cliStatus = status }
+        } catch {
+            await MainActor.run { self.cliStatus = "Failed: \(error.localizedDescription)" }
+        }
+    }
+
+    private static let cliTargets = [
+        "/usr/local/bin/repobar",
+        "/opt/homebrew/bin/repobar",
+    ]
 
     private var preferredTerminalBinding: Binding<String> {
         Binding(

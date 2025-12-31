@@ -24,7 +24,8 @@ Binary name: `repobar`
 
 - `repos` (default): list repositories by activity/PRs/issues/stars.
   - Flags: `--limit`, `--age`, `--release`, `--event`, `--forks`, `--archived`,
-    `--scope` (all|pinned|hidden), `--filter` (all|work|issues|prs),
+    `--scope` (all|pinned|hidden), `--filter` (all|work|issues|prs), `--owner`,
+    `--mine`,
     `--pinned-only`, `--only-with` (work|issues|prs), `--sort` (activity|issues|prs|stars|repo|event).
 - `repo <owner/name>`: repository summary.
   - Flags: `--traffic`, `--heatmap`, `--release`.

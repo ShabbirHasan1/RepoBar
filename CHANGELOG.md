@@ -7,6 +7,7 @@
 - Add Settings installer to link `repobar` CLI into common Homebrew paths.
 - Limit "More Activity/Commits" submenus to 20 entries.
 - Include organization and collaborator repositories in repo lists.
+- CLI: add `--owner`/`--mine` filters for repos list.
 
 ## 0.1.0 - 2025-12-31
 

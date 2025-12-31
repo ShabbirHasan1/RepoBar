@@ -40,6 +40,10 @@ extension ParsedValues {
         }
         return value
     }
+
+    func optionValues(_ label: String) -> [String] {
+        options[label] ?? []
+    }
 }
 
 struct OutputOptions: CommanderParsable, Sendable {
@@ -244,7 +248,7 @@ func printHelp(_ target: HelpTarget) {
         repobar - list repositories by activity, issues, PRs, stars
 
         Usage:
-          repobar [repos] [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--scope VAL] [--filter VAL] [--pinned-only] [--only-with VAL] [--json] [--plain] [--sort KEY]
+          repobar [repos] [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--scope VAL] [--filter VAL] [--pinned-only] [--only-with VAL] [--owner LOGIN] [--mine] [--json] [--plain] [--sort KEY]
           repobar repo <owner/name> [--traffic] [--heatmap] [--release] [--json] [--plain]
           repobar issues <owner/name> [--limit N] [--json] [--plain]
           repobar pulls <owner/name> [--limit N] [--json] [--plain]
@@ -266,6 +270,8 @@ func printHelp(_ target: HelpTarget) {
           --filter     Filter repositories (values: all, work, issues, prs)
           --pinned-only  Only list pinned repositories from settings (alias for --scope pinned)
           --only-with  Only show repos that have issues and/or PRs (values: work, issues, prs)
+          --owner      Only show repositories owned by the given login (repeatable, comma-separated)
+          --mine       Only show repositories owned by the authenticated user
           --json       Output JSON instead of formatted table
           --plain      Plain table output (no links, no colors, no URLs)
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event
@@ -277,7 +283,7 @@ func printHelp(_ target: HelpTarget) {
         repobar repos - list repositories
 
         Usage:
-          repobar repos [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--scope VAL] [--filter VAL] [--pinned-only] [--only-with VAL] [--json] [--plain] [--sort KEY]
+          repobar repos [--limit N] [--age DAYS] [--release] [--event] [--forks] [--archived] [--scope VAL] [--filter VAL] [--pinned-only] [--only-with VAL] [--owner LOGIN] [--mine] [--json] [--plain] [--sort KEY]
 
         Options:
           --limit N    Max repositories to fetch (default: all accessible)
@@ -290,6 +296,8 @@ func printHelp(_ target: HelpTarget) {
           --filter     Filter repositories (values: all, work, issues, prs)
           --pinned-only  Only list pinned repositories from settings (alias for --scope pinned)
           --only-with  Only show repos that have issues and/or PRs (values: work, issues, prs)
+          --owner      Only show repositories owned by the given login (repeatable, comma-separated)
+          --mine       Only show repositories owned by the authenticated user
           --json       Output JSON instead of formatted table
           --plain      Plain table output (no links, no colors, no URLs)
           --sort KEY   Sort by activity, issues, prs, stars, repo, or event

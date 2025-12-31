@@ -61,11 +61,19 @@ struct ReposCommand: CommanderRunnableCommand {
     @Option(name: .customLong("only-with"), help: "Only show repos that have issues and/or PRs (values: work, issues, prs)")
     var onlyWith: OnlyWithSelection?
 
+    @Option(name: .customLong("owner"), help: "Only show repositories owned by this login (repeatable, comma-separated)")
+    var owner: String?
+
+    @Flag(names: [.customLong("mine")], help: "Only show repositories owned by the authenticated user")
+    var mine: Bool = false
+
     @Option(name: .customLong("sort"), help: "Sort by activity, issues, prs, stars, repo, or event")
     var sort: RepositorySortKey = .activity
 
     @OptionGroup
     var output: OutputOptions
+
+    private var ownerFilter: RepoOwnerFilter?
 
     static var commandDescription: CommandDescription {
         CommandDescription(
@@ -87,6 +95,12 @@ struct ReposCommand: CommanderRunnableCommand {
         self.filter = try values.decodeOption("filter")
         self.pinnedOnly = values.flag("pinnedOnly")
         self.onlyWith = try values.decodeOption("onlyWith")
+        let rawOwners = values.optionValues("owner")
+        self.ownerFilter = RepoOwnerFilter.parse(rawOwners)
+        self.mine = values.flag("mine")
+        if self.ownerFilter == nil, rawOwners.isEmpty == false {
+            throw ValidationError("--owner must include at least one login")
+        }
     }
 
     mutating func run() async throws {
@@ -125,6 +139,13 @@ struct ReposCommand: CommanderRunnableCommand {
             try await OAuthTokenRefresher().refreshIfNeeded(host: host)
         }
 
+        var ownerFilter = self.ownerFilter
+        if self.mine {
+            let identity = try await client.currentUser()
+            ownerFilter = (ownerFilter ?? RepoOwnerFilter(owners: []))
+                .inserting(owner: identity.username)
+        }
+
         let now = Date()
         let baseHost = settings.enterpriseHost ?? settings.githubHost
         let effectiveScope = self.scope ?? (self.pinnedOnly ? .pinned : .all)
@@ -160,7 +181,8 @@ struct ReposCommand: CommanderRunnableCommand {
                 return
             }
             let repos = try await self.fetchNamedRepositories(pinned, client: client)
-            let filtered = RepositoryPipeline.apply(repos, query: query)
+            let ownerFiltered = ownerFilter?.applying(to: repos) ?? repos
+            let filtered = RepositoryPipeline.apply(ownerFiltered, query: query)
             try await self.renderResults(
                 repos: filtered,
                 baseHost: baseHost,
@@ -179,7 +201,8 @@ struct ReposCommand: CommanderRunnableCommand {
                 return
             }
             let repos = try await self.fetchNamedRepositories(hiddenList, client: client)
-            let filtered = RepositoryPipeline.apply(repos, query: query)
+            let ownerFiltered = ownerFilter?.applying(to: repos) ?? repos
+            let filtered = RepositoryPipeline.apply(ownerFiltered, query: query)
             try await self.renderResults(
                 repos: filtered,
                 baseHost: baseHost,
@@ -192,7 +215,8 @@ struct ReposCommand: CommanderRunnableCommand {
         }
 
         let repos = try await client.activityRepositories(limit: limit)
-        let filteredRepos = RepositoryPipeline.apply(repos, query: query)
+        let ownerFiltered = ownerFilter?.applying(to: repos) ?? repos
+        let filteredRepos = RepositoryPipeline.apply(ownerFiltered, query: query)
         try await self.renderResults(
             repos: filteredRepos,
             baseHost: baseHost,

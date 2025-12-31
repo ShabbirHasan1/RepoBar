@@ -4,13 +4,13 @@ RepoBar keeps your GitHub work in view without opening a browser. Pin the repos 
 
 ![RepoBar screenshot](docs/assets/repobar.png)
 
+CI status • Releases • Activity & traffic • Local Git state
+
 Homebrew (recommended):
 
 ```bash
 brew install --cask steipete/tap/repobar
 ```
-
-CI status • Releases • Activity & traffic • Local Git state
 
 ## Features
 

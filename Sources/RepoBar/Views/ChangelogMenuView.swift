@@ -91,9 +91,12 @@ private struct MarkdownPreviewView: NSViewRepresentable {
     }
 
     private func renderedAttributedString() -> NSAttributedString {
-        let source = self.markdownWithHardBreaks
+        let source = self.normalizedMarkdown
         let parsed: NSMutableAttributedString
-        if let attributed = try? AttributedString(markdown: source) {
+        var options = AttributedString.MarkdownParsingOptions()
+        options.interpretedSyntax = .inlineOnlyPreservingWhitespace
+        options.failurePolicy = .returnPartiallyParsedIfPossible
+        if let attributed = try? AttributedString(markdown: source, options: options) {
             parsed = NSMutableAttributedString(attributedString: NSAttributedString(attributed))
         } else {
             parsed = NSMutableAttributedString(string: source)
@@ -119,22 +122,7 @@ private struct MarkdownPreviewView: NSViewRepresentable {
         var textView: NSTextView?
     }
 
-    private var markdownWithHardBreaks: String {
-        let normalized = self.markdown.replacingOccurrences(of: "\r\n", with: "\n")
-        let lines = normalized.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-        var inCodeBlock = false
-        let processed = lines.map { rawLine -> String in
-            let line = String(rawLine)
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.hasPrefix("```") {
-                inCodeBlock.toggle()
-                return line
-            }
-            if inCodeBlock || trimmed.isEmpty {
-                return line
-            }
-            return "\(line)  "
-        }
-        return processed.joined(separator: "\n")
+    private var normalizedMarkdown: String {
+        self.markdown.replacingOccurrences(of: "\r\n", with: "\n")
     }
 }

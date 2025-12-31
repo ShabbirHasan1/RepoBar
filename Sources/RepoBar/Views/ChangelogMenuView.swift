@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct ChangelogMenuView: View {
@@ -28,14 +29,11 @@ struct ChangelogMenuView: View {
                 Spacer(minLength: 0)
             }
 
-            ScrollView(.vertical) {
-                MarkdownTextView(
-                    markdown: self.content.markdown,
-                    isHighlighted: self.isHighlighted
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxHeight: MenuStyle.changelogPreviewHeight)
+            MarkdownPreviewView(
+                markdown: self.content.markdown,
+                isHighlighted: self.isHighlighted
+            )
+            .frame(height: MenuStyle.changelogPreviewHeight)
 
             if self.content.isTruncated {
                 Text("Preview truncated")
@@ -49,36 +47,76 @@ struct ChangelogMenuView: View {
     }
 }
 
-private struct MarkdownTextView: View {
+@MainActor
+private struct MarkdownPreviewView: NSViewRepresentable {
     let markdown: String
     let isHighlighted: Bool
-
-    var body: some View {
-        Text(self.attributedText)
-            .foregroundStyle(MenuHighlightStyle.primary(self.isHighlighted))
-            .multilineTextAlignment(.leading)
-            .fixedSize(horizontal: false, vertical: true)
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
     }
 
-    private var attributedText: AttributedString {
+    func makeNSView(context: Context) -> NSScrollView {
+        let textView = NSTextView(frame: .zero)
+        context.coordinator.textView = textView
+        textView.isEditable = false
+        textView.isSelectable = false
+        textView.drawsBackground = false
+        textView.textContainerInset = .zero
+        textView.textContainer?.lineFragmentPadding = 0
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.textContainer?.widthTracksTextView = true
+        textView.textContainer?.heightTracksTextView = false
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
+        let scrollView = NSScrollView()
+        scrollView.drawsBackground = false
+        scrollView.hasVerticalScroller = true
+        scrollView.autohidesScrollers = true
+        scrollView.borderType = .noBorder
+        scrollView.documentView = textView
+        return scrollView
+    }
+
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let textView = context.coordinator.textView else { return }
+        textView.textStorage?.setAttributedString(self.renderedAttributedString())
+        let width = nsView.contentView.bounds.width
+        textView.textContainer?.containerSize = NSSize(
+            width: max(width, 1),
+            height: .greatestFiniteMagnitude
+        )
+    }
+
+    private func renderedAttributedString() -> NSAttributedString {
         let source = self.markdownWithHardBreaks
-        var options = AttributedString.MarkdownParsingOptions()
-        options.interpretedSyntax = .full
-        options.failurePolicy = .returnPartiallyParsedIfPossible
-        let parsed = (try? AttributedString(markdown: source, options: options))
-            ?? AttributedString(source)
-        return self.applyBaseFont(to: parsed)
-    }
+        let parsed: NSMutableAttributedString
+        if let attributed = try? AttributedString(markdown: source) {
+            parsed = NSMutableAttributedString(attributedString: NSAttributedString(attributed))
+        } else {
+            parsed = NSMutableAttributedString(string: source)
+        }
 
-    private func applyBaseFont(to text: AttributedString) -> AttributedString {
-        var output = text
-        let baseFont: Font = .caption
-        for run in output.runs {
-            if run.font == nil {
-                output[run.range].font = baseFont
+        let baseFont = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        let baseColor = NSColor(MenuHighlightStyle.primary(self.isHighlighted))
+        let fullRange = NSRange(location: 0, length: parsed.length)
+        parsed.addAttributes([.font: baseFont, .foregroundColor: baseColor], range: fullRange)
+
+        parsed.enumerateAttribute(.font, in: fullRange, options: []) { value, range, _ in
+            guard let font = value as? NSFont else { return }
+            if font.pointSize > baseFont.pointSize + 2 {
+                let clamped = NSFont.systemFont(ofSize: baseFont.pointSize + 1, weight: .semibold)
+                parsed.addAttribute(.font, value: clamped, range: range)
             }
         }
-        return output
+
+        return parsed
+    }
+
+    final class Coordinator {
+        var textView: NSTextView?
     }
 
     private var markdownWithHardBreaks: String {

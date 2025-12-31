@@ -32,7 +32,6 @@ This is the first public release (v0.1.0). There is still plenty to polish and e
 Homebrew (recommended):
 
 ```bash
-brew tap steipete/tap
 brew install --cask steipete/tap/repobar
 ```
 

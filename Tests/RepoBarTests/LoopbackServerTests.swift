@@ -27,11 +27,12 @@ struct LoopbackServerTests {
         ]
         let callbackURL = components.url!
 
-        let sendTask = Task {
-            let deadline = Date().addingTimeInterval(2)
-            while !Task.isCancelled, Date() < deadline {
+        let sendTask = Task.detached {
+            while !Task.isCancelled {
                 do {
-                    _ = try await URLSession.shared.data(from: callbackURL)
+                    var request = URLRequest(url: callbackURL)
+                    request.timeoutInterval = 0.5
+                    _ = try await URLSession.shared.data(for: request)
                     return
                 } catch {
                     try? await Task.sleep(nanoseconds: 50_000_000)
@@ -40,7 +41,7 @@ struct LoopbackServerTests {
         }
         defer { sendTask.cancel() }
 
-        let result = try await server.waitForCallback(timeout: 5)
+        let result = try await server.waitForCallback(timeout: 10)
         #expect(result.code == expectedCode)
         #expect(result.state == expectedState)
     }

@@ -36,3 +36,15 @@ RepoBar signs in via browser OAuth and stores tokens securely in the macOS Keych
 This is the first public release (v0.1.0). There is still plenty to polish and expand, so expect rough edges and rapid iteration.
 
 Direct download: `https://github.com/steipete/RepoBar/releases/latest`
+
+## Readme
+
+RepoBar ships a bundled CLI (`repobar`) for quick repo overviews and automation.
+Full command reference: [docs/cli.md](docs/cli.md).
+
+```bash
+repobar login
+repobar repos --release
+repobar repos --release --plain   # no colors, no links, no URLs
+repobar repos --release --json    # machine output
+```

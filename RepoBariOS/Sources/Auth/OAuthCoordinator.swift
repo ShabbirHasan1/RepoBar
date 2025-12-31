@@ -112,14 +112,14 @@ final class OAuthCoordinator: NSObject, ASWebAuthenticationPresentationContextPr
     }
 
     func presentationAnchor(for _: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-        if let window = scenes.flatMap(\.windows).first(where: { $0.isKeyWindow }) {
+        let windowScenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        if let window = windowScenes.flatMap(\.windows).first(where: { $0.isKeyWindow }) {
             return window
         }
-        if let scene = scenes.first {
-            return UIWindow(windowScene: scene)
+        guard let scene = windowScenes.first else {
+            preconditionFailure("No UIWindowScene available for authentication")
         }
-        return UIWindow(frame: .zero)
+        return UIWindow(windowScene: scene)
     }
 
     private func startWebAuthentication(url: URL) async throws -> URL {

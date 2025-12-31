@@ -83,6 +83,7 @@ public enum RepoSubmenuItemID: String, CaseIterable, Codable, Hashable, Sendable
     case issues
     case pulls
     case releases
+    case changelog
     case ciRuns
     case discussions
     case tags
@@ -107,6 +108,7 @@ public enum RepoSubmenuItemID: String, CaseIterable, Codable, Hashable, Sendable
         case .issues: "Issues"
         case .pulls: "Pull Requests"
         case .releases: "Releases"
+        case .changelog: "Changelog"
         case .ciRuns: "CI Runs"
         case .discussions: "Discussions"
         case .tags: "Tags"
@@ -133,6 +135,7 @@ public enum RepoSubmenuItemID: String, CaseIterable, Codable, Hashable, Sendable
         case .issues: "Recent issues list"
         case .pulls: "Recent pull requests"
         case .releases: "Recent releases list"
+        case .changelog: "Inline markdown preview"
         case .ciRuns: "Recent CI runs"
         case .discussions: "Recent discussions"
         case .tags: "Recent tags"
@@ -152,7 +155,7 @@ public enum RepoSubmenuItemID: String, CaseIterable, Codable, Hashable, Sendable
         switch self {
         case .openOnGitHub: .open
         case .openInFinder, .openInTerminal, .checkoutRepo, .localState, .worktrees: .local
-        case .issues, .pulls, .releases, .ciRuns, .discussions, .tags, .branches, .contributors: .lists
+        case .issues, .pulls, .releases, .changelog, .ciRuns, .discussions, .tags, .branches, .contributors: .lists
         case .heatmap: .heatmap
         case .commits: .commits
         case .activity: .activity
@@ -209,6 +212,7 @@ public struct MenuCustomization: Equatable, Codable, Hashable, Sendable {
         .issues,
         .pulls,
         .releases,
+        .changelog,
         .ciRuns,
         .discussions,
         .tags,

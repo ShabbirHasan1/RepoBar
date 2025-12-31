@@ -1,0 +1,224 @@
+import AppKit
+import Foundation
+import RepoBarCore
+import SwiftUI
+
+@MainActor
+final class ChangelogMenuCoordinator {
+    private let appState: AppState
+    private let menuBuilder: StatusBarMenuBuilder
+    private let menuItemFactory: MenuItemViewFactory
+    private var menus: [ObjectIdentifier: ChangelogMenuEntry] = [:]
+    private var cache: [String: ChangelogCacheEntry] = [:]
+    private var inflight: [String: Task<ChangelogResult, Never>] = [:]
+
+    init(appState: AppState, menuBuilder: StatusBarMenuBuilder, menuItemFactory: MenuItemViewFactory) {
+        self.appState = appState
+        self.menuBuilder = menuBuilder
+        self.menuItemFactory = menuItemFactory
+    }
+
+    func registerChangelogMenu(_ menu: NSMenu, fullName: String, localStatus: LocalRepoStatus?) {
+        self.menus[ObjectIdentifier(menu)] = ChangelogMenuEntry(
+            menu: menu,
+            fullName: fullName,
+            localPath: localStatus?.path
+        )
+    }
+
+    func pruneMenus() {
+        self.menus = self.menus.filter { $0.value.menu != nil }
+    }
+
+    func handleMenuWillOpen(_ menu: NSMenu) -> Bool {
+        guard let entry = self.menus[ObjectIdentifier(menu)] else { return false }
+        self.menuBuilder.refreshMenuViewHeights(in: menu)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.refreshChangelogMenu(menu: menu, entry: entry)
+        }
+        return true
+    }
+
+    private func refreshChangelogMenu(menu: NSMenu, entry: ChangelogMenuEntry) async {
+        let now = Date()
+        if let cached = self.cache[entry.fullName],
+           now.timeIntervalSince(cached.fetchedAt) <= AppLimits.Changelog.cacheTTL
+        {
+            self.applyResult(cached.result, to: menu)
+            return
+        }
+
+        if let cached = self.cache[entry.fullName] {
+            self.applyResult(cached.result, to: menu)
+        } else {
+            self.applyLoading(to: menu)
+        }
+
+        let result = await self.loadChangelog(fullName: entry.fullName, localPath: entry.localPath)
+        self.cache[entry.fullName] = ChangelogCacheEntry(fetchedAt: Date(), result: result)
+        self.applyResult(result, to: menu)
+    }
+
+    private func applyLoading(to menu: NSMenu) {
+        menu.removeAllItems()
+        menu.addItem(self.menuBuilder.infoItem("Loading…"))
+        self.menuBuilder.refreshMenuViewHeights(in: menu)
+        menu.update()
+    }
+
+    private func applyResult(_ result: ChangelogResult, to menu: NSMenu) {
+        menu.removeAllItems()
+        switch result {
+        case .signedOut:
+            menu.addItem(self.menuBuilder.infoItem("Sign in to load changelog"))
+        case .missing:
+            menu.addItem(self.menuBuilder.infoItem("No changelog found"))
+        case let .failure(message):
+            menu.addItem(self.menuBuilder.infoMessageItem("Changelog failed: \(message)"))
+        case let .content(content):
+            let view = ChangelogMenuView(content: content, lineLimit: AppLimits.Changelog.maxLines)
+            menu.addItem(self.menuItemFactory.makeItem(for: view, enabled: false))
+        }
+        if menu.items.contains(where: { $0.view != nil }) {
+            self.menuBuilder.refreshMenuViewHeights(in: menu)
+        }
+        menu.update()
+    }
+
+    private func loadChangelog(fullName: String, localPath: URL?) async -> ChangelogResult {
+        if let task = self.inflight[fullName] {
+            return await task.value
+        }
+        let task = Task { @MainActor in
+            await self.fetchChangelog(fullName: fullName, localPath: localPath)
+        }
+        self.inflight[fullName] = task
+        let result = await task.value
+        self.inflight[fullName] = nil
+        return result
+    }
+
+    private func fetchChangelog(fullName: String, localPath: URL?) async -> ChangelogResult {
+        if let localPath, let localContent = self.loadLocalChangelog(root: localPath) {
+            return .content(localContent)
+        }
+
+        guard case .loggedIn = self.appState.session.account else { return .signedOut }
+        guard let (owner, name) = self.ownerAndName(from: fullName) else {
+            return .failure("Invalid repository")
+        }
+
+        do {
+            let items = try await self.appState.github.repoContents(owner: owner, name: name)
+            guard let match = self.matchingChangelogItem(in: items) else { return .missing }
+            let data = try await self.appState.github.repoFileContents(owner: owner, name: name, path: match.path)
+            let text = String(decoding: data, as: UTF8.self)
+            guard text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { return .missing }
+            let (truncatedText, isTruncated) = self.truncateMarkdown(text)
+            return .content(ChangelogContent(
+                fileName: match.name,
+                markdown: truncatedText,
+                source: .remote,
+                isTruncated: isTruncated
+            ))
+        } catch {
+            return .failure(error.userFacingMessage)
+        }
+    }
+
+    private func loadLocalChangelog(root: URL) -> ChangelogContent? {
+        guard let fileURL = self.localChangelogURL(root: root) else { return nil }
+        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        let text = String(decoding: data, as: UTF8.self)
+        guard text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false else { return nil }
+        let (truncatedText, isTruncated) = self.truncateMarkdown(text)
+        return ChangelogContent(
+            fileName: fileURL.lastPathComponent,
+            markdown: truncatedText,
+            source: .local,
+            isTruncated: isTruncated
+        )
+    }
+
+    private func localChangelogURL(root: URL) -> URL? {
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: root.path) else { return nil }
+        guard let match = self.matchingChangelogName(in: names) else { return nil }
+        let url = root.appendingPathComponent(match, isDirectory: false)
+        var isDirectory = ObjCBool(false)
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+              isDirectory.boolValue == false
+        else { return nil }
+        return url
+    }
+
+    private func matchingChangelogItem(in items: [RepoContentItem]) -> RepoContentItem? {
+        let files = items.filter { $0.type == .file }
+        for candidate in Self.changelogCandidates {
+            if let match = files.first(where: { $0.name.lowercased() == candidate }) {
+                return match
+            }
+        }
+        return nil
+    }
+
+    private func matchingChangelogName(in names: [String]) -> String? {
+        for candidate in Self.changelogCandidates {
+            if let match = names.first(where: { $0.lowercased() == candidate }) {
+                return match
+            }
+        }
+        return nil
+    }
+
+    private func truncateMarkdown(_ text: String) -> (String, Bool) {
+        let normalized = text.replacingOccurrences(of: "\r\n", with: "\n")
+        var lines = normalized.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        var truncated = false
+        if lines.count > AppLimits.Changelog.maxLines {
+            lines = Array(lines.prefix(AppLimits.Changelog.maxLines))
+            truncated = true
+        }
+        var result = lines.joined(separator: "\n")
+        if result.count > AppLimits.Changelog.maxCharacters {
+            result = String(result.prefix(AppLimits.Changelog.maxCharacters))
+            truncated = true
+        }
+        return (result.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines), truncated)
+    }
+
+    private func ownerAndName(from fullName: String) -> (String, String)? {
+        let parts = fullName.split(separator: "/", maxSplits: 1)
+        guard parts.count == 2 else { return nil }
+        return (String(parts[0]), String(parts[1]))
+    }
+
+    private static let changelogCandidates: [String] = [
+        "changelog.md",
+        "changelog"
+    ]
+}
+
+private final class ChangelogMenuEntry {
+    weak var menu: NSMenu?
+    let fullName: String
+    let localPath: URL?
+
+    init(menu: NSMenu, fullName: String, localPath: URL?) {
+        self.menu = menu
+        self.fullName = fullName
+        self.localPath = localPath
+    }
+}
+
+private struct ChangelogCacheEntry {
+    let fetchedAt: Date
+    let result: ChangelogResult
+}
+
+private enum ChangelogResult {
+    case signedOut
+    case missing
+    case failure(String)
+    case content(ChangelogContent)
+}

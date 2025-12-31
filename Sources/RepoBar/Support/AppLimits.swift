@@ -34,6 +34,12 @@ enum AppLimits {
         static let totalLimit: Int = previewLimit + moreLimit
     }
 
+    enum Changelog {
+        static let maxCharacters: Int = 4000
+        static let maxLines: Int = 30
+        static let cacheTTL: TimeInterval = 10 * 60
+    }
+
     enum LocalRepo {
         static let mainMenuDirtyFileLimit: Int = 3
         static let submenuDirtyFileLimit: Int = 10

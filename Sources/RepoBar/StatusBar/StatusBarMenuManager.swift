@@ -25,6 +25,11 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         recentMenuService: self.recentMenuService,
         actionHandler: self
     )
+    lazy var changelogMenuCoordinator = ChangelogMenuCoordinator(
+        appState: self.appState,
+        menuBuilder: self.menuBuilder,
+        menuItemFactory: self.menuItemFactory
+    )
     lazy var activityMenuCoordinator = ActivityMenuCoordinator(
         appState: self.appState,
         menuBuilder: self.menuBuilder,
@@ -120,6 +125,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
         }
         if self.recentListCoordinator.handleMenuWillOpen(menu) { return }
         if self.localGitMenuCoordinator.handleMenuWillOpen(menu) { return }
+        if self.changelogMenuCoordinator.handleMenuWillOpen(menu) { return }
         if menu === self.mainMenu {
             if menu.delegate == nil {
                 menu.delegate = self
@@ -127,6 +133,7 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
             let plan = self.menuBuilder.mainMenuPlan()
             self.recentListCoordinator.pruneMenus()
             self.localGitMenuCoordinator.pruneMenus()
+            self.changelogMenuCoordinator.pruneMenus()
             if self.appState.session.settings.appearance.showContributionHeader {
                 if case let .loggedIn(user) = self.appState.session.account {
                     Task { await self.appState.loadContributionHeatmapIfNeeded(for: user.username) }
@@ -204,6 +211,10 @@ final class StatusBarMenuManager: NSObject, NSMenuDelegate {
 
     func registerLocalWorktreeMenu(_ menu: NSMenu, repoPath: URL, fullName: String) {
         self.localGitMenuCoordinator.registerLocalWorktreeMenu(menu, repoPath: repoPath, fullName: fullName)
+    }
+
+    func registerChangelogMenu(_ menu: NSMenu, fullName: String, localStatus: LocalRepoStatus?) {
+        self.changelogMenuCoordinator.registerChangelogMenu(menu, fullName: fullName, localStatus: localStatus)
     }
 
     func cloneURL(for fullName: String) -> URL? {

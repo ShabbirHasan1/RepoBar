@@ -143,6 +143,8 @@ struct RepoSubmenuBuilder {
                 openAction: #selector(self.target.openReleases),
                 badgeText: cachedReleaseCount.flatMap { $0 > 0 ? String($0) : nil }
             ))]
+        case .changelog:
+            return [self.changelogSubmenuItem(fullName: repo.title, localStatus: local)]
         case .ciRuns:
             let runBadge = repo.ciRunCount.flatMap { $0 > 0 ? String($0) : nil }
             return [self.recentListSubmenuItem(RecentListConfig(
@@ -338,6 +340,21 @@ struct RepoSubmenuBuilder {
             systemImage: "square.stack.3d.down.right",
             badgeText: nil,
             detailText: local.worktreeName
+        )
+        return self.menuBuilder.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
+    }
+
+    private func changelogSubmenuItem(fullName: String, localStatus: LocalRepoStatus?) -> NSMenuItem {
+        let submenu = NSMenu()
+        submenu.autoenablesItems = false
+        submenu.delegate = self.target
+        self.target.registerChangelogMenu(submenu, fullName: fullName, localStatus: localStatus)
+        submenu.addItem(self.menuBuilder.infoItem("Loading…"))
+
+        let row = RecentListSubmenuRowView(
+            title: "Changelog",
+            systemImage: "doc.text",
+            badgeText: nil
         )
         return self.menuBuilder.viewItem(for: row, enabled: true, highlightable: true, submenu: submenu)
     }

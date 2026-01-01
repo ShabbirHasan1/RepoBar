@@ -108,16 +108,22 @@ struct RepoAutocompleteWindowView: NSViewRepresentable {
                   let hostingView else { return }
 
             let resolvedWidth = max(420, width + 160)
+            let maxVisibleRows = min(AppLimits.Autocomplete.settingsSearchLimit, 10)
+            let visibleRows = min(maxVisibleRows, suggestions.count)
+            let rowHeight: CGFloat = 48
+            let dividerHeight: CGFloat = 1
+            let resolvedHeight = (rowHeight * CGFloat(visibleRows) + dividerHeight * CGFloat(max(0, visibleRows - 1))).rounded(.up)
             let content = RepoAutocompleteListView(
                 suggestions: suggestions,
                 selectedIndex: selectedIndex,
-                keyboardNavigating: keyboardNavigating
+                keyboardNavigating: keyboardNavigating,
+                height: resolvedHeight
             ) { [weak self] fullName in
                 self?.onSelect(fullName)
                 self?.isShowing = false
             }
             .frame(width: resolvedWidth)
-            .frame(maxHeight: 220)
+            .frame(height: resolvedHeight)
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
             .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
             .overlay(
@@ -131,11 +137,11 @@ struct RepoAutocompleteWindowView: NSViewRepresentable {
             let screenFrame = parentWindow.convertToScreen(viewFrame)
             let windowFrame = NSRect(
                 x: screenFrame.minX,
-                y: screenFrame.minY - 224,
+                y: screenFrame.minY - (resolvedHeight + 4),
                 width: resolvedWidth,
-                height: 220
+                height: resolvedHeight
             )
-            window.setFrame(windowFrame, display: false)
+            window.setFrame(windowFrame, display: false, animate: true)
 
             if window.parent == nil {
                 parentWindow.addChildWindow(window, ordered: .above)
@@ -170,6 +176,7 @@ private struct RepoAutocompleteListView: View {
     let suggestions: [Repository]
     @Binding var selectedIndex: Int
     let keyboardNavigating: Bool
+    let height: CGFloat
     let onSelect: (String) -> Void
     @State private var mouseHoverTriggered = false
 
@@ -200,7 +207,7 @@ private struct RepoAutocompleteListView: View {
                 }
             }
             .scrollIndicators(.visible)
-            .frame(maxHeight: 220)
+            .frame(height: self.height)
             .onChange(of: self.selectedIndex) { _, newIndex in
                 let shouldScroll = newIndex >= 0
                     && newIndex < self.suggestions.count

@@ -157,14 +157,14 @@ private struct RepoInputRow<Accessory: View>: View {
                 TextField(self.placeholder, text: self.$text)
                     .textFieldStyle(.roundedBorder)
                     .focused(self.$isFocused)
-                    .onChange(of: self.text) { _, _ in
+                    .onChange(of: self.text) { _, newValue in
                         self.keyboardNavigating = false
-                        self.scheduleSearch(immediate: true)
+                        self.scheduleSearch(query: newValue, immediate: true)
                     }
                     .onSubmit { self.commit() }
                     .onTapGesture {
                         self.showSuggestions = true
-                        self.scheduleSearch(immediate: true)
+                        self.scheduleSearch(query: self.text, immediate: true)
                     }
                     .onMoveCommand(perform: self.handleMove)
                     .overlay(alignment: .trailing) {
@@ -212,7 +212,7 @@ private struct RepoInputRow<Accessory: View>: View {
         }
         .onChange(of: self.isFocused) { _, newValue in
             if newValue {
-                self.scheduleSearch(immediate: true)
+                self.scheduleSearch(query: self.text, immediate: true)
             } else {
                 self.hideSuggestionsSoon()
             }
@@ -230,9 +230,8 @@ private struct RepoInputRow<Accessory: View>: View {
         self.onCommit(trimmed)
     }
 
-    private func scheduleSearch(immediate: Bool = false) {
+    private func scheduleSearch(query: String, immediate: Bool = false) {
         self.searchTask?.cancel()
-        let query = self.text
         self.searchTask = Task {
             // Local-only filtering; keep it snappy.
             if !immediate {

@@ -306,7 +306,7 @@ struct AccountSettingsView: View {
         await DiagnosticsLogger.shared.message(message)
     }
 
-    private func withTimeout<T>(
+    private func withTimeout<T: Sendable>(
         seconds: TimeInterval,
         operation: @escaping @Sendable () async throws -> T
     ) async throws -> T {

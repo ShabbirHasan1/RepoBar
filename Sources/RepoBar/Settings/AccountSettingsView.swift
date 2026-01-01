@@ -109,6 +109,12 @@ struct AccountSettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             }
+
+            if let lastError = self.session.lastError, validationError == nil {
+                Text(lastError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
         }
         .formStyle(.grouped)
         .padding(.horizontal, 20)
@@ -140,6 +146,7 @@ struct AccountSettingsView: View {
     private func login() {
         Task { @MainActor in
             self.session.account = .loggingIn
+            self.session.lastError = nil
             let enterpriseURL = self.hostMode == .enterprise ? self.normalizedEnterpriseHost() : nil
 
             if self.hostMode == .enterprise, let enterpriseURL {

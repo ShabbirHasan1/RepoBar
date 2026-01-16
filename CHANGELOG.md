@@ -13,6 +13,7 @@
 - macOS: stabilize repo settings autocomplete (no spinner layout wiggle), widen the dropdown, show repo stats/badges, fix filtering/hover/scroll, and anchor/size the dropdown to results (no bounce on shrink).
 - macOS: widen Enterprise Base URL field and shrink auth progress indicators to avoid layout jumps.
 - iOS: update app icon + logo assets.
+- macOS: derive activity commit links from repo URL when event repo name is missing or malformed.
 
 ## 0.1.2 - 2025-12-31
 

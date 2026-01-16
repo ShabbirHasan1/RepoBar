@@ -28,7 +28,7 @@ struct GlobalActivityTests {
     }
 
     @Test
-    func repoEventActivityEventFromRepo_rejectsInvalidRepoName() throws {
+    func repoEventActivityEventFromRepo_fallsBackToRepoURL() throws {
         let data = Data("""
         {
           "type": "PushEvent",
@@ -43,7 +43,10 @@ struct GlobalActivityTests {
         let event = try decoder.decode(RepoEvent.self, from: data)
         let webHost = URL(string: "https://github.com")!
 
-        #expect(event.activityEventFromRepo(webHost: webHost) == nil)
+        let activity = event.activityEventFromRepo(webHost: webHost)
+
+        #expect(activity != nil)
+        #expect(activity?.url.absoluteString.contains("https://github.com/steipete/RepoBar/commit/abc123") == true)
     }
 
     @Test

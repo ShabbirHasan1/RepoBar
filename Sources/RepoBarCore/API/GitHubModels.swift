@@ -134,12 +134,21 @@ struct RepoEvent: Decodable {
 }
 
 struct EventRepo: Decodable {
-    let name: String
+    let name: String?
     let url: URL?
 
     enum CodingKeys: String, CodingKey {
         case name
         case url
+    }
+
+    var fullName: String? {
+        if let name, name.contains("/") { return name }
+        guard let url else { return nil }
+        let parts = url.path.split(separator: "/")
+        guard let reposIndex = parts.firstIndex(where: { $0 == "repos" }),
+              parts.count > reposIndex + 2 else { return nil }
+        return "\(parts[reposIndex + 1])/\(parts[reposIndex + 2])"
     }
 }
 
@@ -295,8 +304,8 @@ extension RepoEvent {
     }
 
     func commitSummaries(webHost: URL) -> [RepoCommitSummary] {
-        guard let repo else { return [] }
-        let parts = repo.name.split(separator: "/", maxSplits: 1).map(String.init)
+        guard let repo, let repoName = repo.fullName else { return [] }
+        let parts = repoName.split(separator: "/", maxSplits: 1).map(String.init)
         guard parts.count == 2 else { return [] }
         let owner = parts[0]
         let name = parts[1]
@@ -315,7 +324,7 @@ extension RepoEvent {
                 authorName: commit.author?.name,
                 authorLogin: self.actor.login,
                 authorAvatarURL: self.actor.avatarUrl,
-                repoFullName: repo.name
+                repoFullName: repoName
             )
         }
     }
@@ -338,8 +347,8 @@ extension RepoEvent {
     }
 
     func activityEventFromRepo(webHost: URL) -> ActivityEvent? {
-        guard let repo else { return nil }
-        let parts = repo.name.split(separator: "/", maxSplits: 1)
+        guard let repo, let repoName = repo.fullName else { return nil }
+        let parts = repoName.split(separator: "/", maxSplits: 1)
         guard parts.count == 2 else { return nil }
         return self.activityEvent(owner: String(parts[0]), name: String(parts[1]), webHost: webHost)
     }

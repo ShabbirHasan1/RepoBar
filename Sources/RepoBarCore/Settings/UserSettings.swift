@@ -15,8 +15,21 @@ public struct UserSettings: Equatable, Codable {
     public var githubHost: URL = .init(string: "https://github.com")!
     public var enterpriseHost: URL?
     public var loopbackPort: Int = 53682
+    public var authMethod: AuthMethod = .oauth
 
     public init() {}
+}
+
+public enum AuthMethod: String, CaseIterable, Equatable, Codable, Sendable {
+    case oauth
+    case pat
+
+    public var label: String {
+        switch self {
+        case .oauth: "OAuth"
+        case .pat: "Personal Access Token"
+        }
+    }
 }
 
 public struct HeatmapSettings: Equatable, Codable {

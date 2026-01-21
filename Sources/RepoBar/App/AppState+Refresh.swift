@@ -49,7 +49,7 @@ extension AppState {
             if Task.isCancelled { return }
             let now = Date()
             self.updateHeatmapRange(now: now)
-            if self.auth.loadTokens() == nil {
+            if self.auth.loadTokens() == nil && self.patAuth.loadPAT() == nil {
                 let localSnapshot = await self.snapshotForLoggedOutState(localSettings: localSettings)
                 await self.applyLoggedOutState(localSnapshot: localSnapshot, lastError: nil)
                 return

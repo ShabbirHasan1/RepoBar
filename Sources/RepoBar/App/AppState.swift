@@ -9,6 +9,7 @@ import RepoBarCore
 final class AppState {
     var session = Session()
     let auth = OAuthCoordinator()
+    let patAuth = PATAuthenticator()
     let github = GitHubClient()
     let refreshScheduler = RefreshScheduler()
     let settingsStore = SettingsStore()
@@ -39,17 +40,32 @@ final class AppState {
             verbosity: self.session.settings.loggingVerbosity,
             fileLoggingEnabled: self.session.settings.fileLoggingEnabled
         )
-        let storedTokens = self.auth.loadTokens()
-        self.session.hasStoredTokens = (storedTokens != nil)
+        let storedOAuthTokens = self.auth.loadTokens()
+        let storedPAT = self.patAuth.loadPAT()
+        self.session.hasStoredTokens = (storedOAuthTokens != nil) || (storedPAT != nil)
+        let inferredAuthMethod: AuthMethod = storedPAT != nil ? .pat : .oauth
+        if self.session.settings.authMethod != inferredAuthMethod {
+            self.session.settings.authMethod = inferredAuthMethod
+            self.settingsStore.save(self.session.settings)
+        }
+        // Capture tokenStore separately for Sendable compliance
+        let tokenStore = TokenStore.shared
         Task {
             await self.github.setTokenProvider { @Sendable [weak self] () async throws -> OAuthTokens? in
-                try? await self?.auth.refreshIfNeeded()
+                guard let self else { return nil }
+                let authMethod = await MainActor.run { self.session.settings.authMethod }
+                if authMethod == .pat {
+                    if let pat = try? tokenStore.loadPAT() {
+                        return OAuthTokens(accessToken: pat, refreshToken: "", expiresAt: nil)
+                    }
+                }
+                return try? await self.auth.refreshIfNeeded()
             }
         }
         self.tokenRefreshTask = Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
-                if self.auth.loadTokens() != nil {
+                if self.session.settings.authMethod == .oauth, self.auth.loadTokens() != nil {
                     _ = try? await self.auth.refreshIfNeeded()
                 }
                 try? await Task.sleep(for: .seconds(self.tokenRefreshInterval))

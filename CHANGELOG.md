@@ -11,6 +11,7 @@
 - macOS: prevent token check/refresh from hanging; add timeouts and diagnostics logging.
 - macOS: detect auth failures (401/refresh errors) and log out cleanly with a clearer message.
 - macOS: preserve keychain access groups in signed builds so app + CLI share tokens (#16, thanks @jj3ny).
+- macOS: add Personal Access Token authentication with persistence + logout fixes (#21, thanks @kkiermasz).
 - macOS: keep the menu open after pin/unpin/hide/move actions (#25, thanks @bahag-chaurasiak).
 - macOS: make Local Projects scan depth configurable (default 4) (#11, thanks @shunkakinoki).
 - macOS: allow importing GitHub CLI tokens with host matching and no refresh loop (#24, thanks @bahag-chaurasiak).

@@ -66,6 +66,23 @@ public struct TokenStore: Sendable {
     public func clear() {
         self.clear(account: "default")
         self.clear(account: "client")
+        self.clearPAT()
+    }
+
+    // MARK: - PAT Storage
+
+    public func savePAT(_ token: String) throws {
+        let data = Data(token.utf8)
+        try self.save(data: data, account: "pat")
+    }
+
+    public func loadPAT() throws -> String? {
+        guard let data = try self.loadData(account: "pat") else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    public func clearPAT() {
+        self.clear(account: "pat")
     }
 }
 

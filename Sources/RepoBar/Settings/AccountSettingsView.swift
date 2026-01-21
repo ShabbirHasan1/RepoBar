@@ -9,6 +9,9 @@ struct AccountSettingsView: View {
     @State private var clientSecret = ""
     @State private var enterpriseHost = ""
     @State private var hostMode: HostMode = .githubCom
+    @State private var authMethod: AuthMethod = .oauth
+    @State private var patInput = ""
+    @State private var isValidatingPAT = false
     @State private var validationError: String?
     @State private var tokenValidation: TokenValidationState = .unknown
     private let enterpriseFieldMinWidth: CGFloat = 260
@@ -44,9 +47,9 @@ struct AccountSettingsView: View {
                             Spacer()
                             Button("Log out") {
                                 Task {
-                                    await self.appState.auth.logout()
-                                    self.session.account = .loggedOut
-                                    self.session.hasStoredTokens = false
+                                    await self.appState.logoutCurrentMethod()
+                                    self.authMethod = .oauth
+                                    self.patInput = ""
                                 }
                             }
                             .buttonStyle(.bordered)
@@ -68,54 +71,95 @@ struct AccountSettingsView: View {
                                 Task { await self.validateToken() }
                             }
                             .disabled(self.tokenValidation == .checking)
-                            Button("Refresh token") {
-                                Task { await self.refreshToken() }
+                            if self.session.settings.authMethod == .oauth {
+                                Button("Refresh token") {
+                                    Task { await self.refreshToken() }
+                                }
+                                .disabled(self.tokenValidation == .checking)
                             }
-                            .disabled(self.tokenValidation == .checking)
                         }
                         .buttonStyle(.bordered)
                     }
                     .padding(.vertical, 4)
                 default:
-                    if self.hostMode == .enterprise {
-                        LabeledContent("Enterprise Base URL") {
-                            TextField("https://ghe.example.com", text: self.$enterpriseHost)
+                    Picker("Authentication", selection: self.$authMethod) {
+                        ForEach(AuthMethod.allCases, id: \.self) { method in
+                            Text(method.label).tag(method)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    if self.authMethod == .pat {
+                        LabeledContent("Token") {
+                            SecureField("ghp_...", text: self.$patInput)
                                 .frame(minWidth: self.enterpriseFieldMinWidth)
                                 .layoutPriority(1)
                         }
-                        LabeledContent("Client ID") {
-                            TextField("", text: self.$clientID)
-                                .frame(minWidth: self.enterpriseFieldMinWidth)
-                                .layoutPriority(1)
-                        }
-                        LabeledContent("Client Secret") {
-                            SecureField("", text: self.$clientSecret)
-                                .frame(minWidth: self.enterpriseFieldMinWidth)
-                                .layoutPriority(1)
-                        }
-                        Text("Create an OAuth App in your enterprise server. Callback URL: http://127.0.0.1:53682/callback")
+                        Text("Recommended for SAML SSO organizations. Required scopes: repo, read:org")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                        Link("Create a token on GitHub", destination: self.createTokenURL())
+                            .font(.caption)
+                        if self.hostMode == .enterprise {
+                            LabeledContent("Enterprise Base URL") {
+                                TextField("https://ghe.example.com", text: self.$enterpriseHost)
+                                    .frame(minWidth: self.enterpriseFieldMinWidth)
+                                    .layoutPriority(1)
+                            }
+                        }
+                        HStack(spacing: 8) {
+                            if self.isValidatingPAT {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .frame(width: self.spinnerSize, height: self.spinnerSize)
+                            }
+                            Button(self.isValidatingPAT ? "Signing in…" : "Sign in with Token") {
+                                self.loginWithPAT()
+                            }
+                            .disabled(self.patInput.isEmpty || self.isValidatingPAT)
+                            .buttonStyle(.borderedProminent)
+                        }
                     } else {
-                        Text("Uses the built-in GitHub.com OAuth app.")
+                        if self.hostMode == .enterprise {
+                            LabeledContent("Enterprise Base URL") {
+                                TextField("https://ghe.example.com", text: self.$enterpriseHost)
+                                    .frame(minWidth: self.enterpriseFieldMinWidth)
+                                    .layoutPriority(1)
+                            }
+                            LabeledContent("Client ID") {
+                                TextField("", text: self.$clientID)
+                                    .frame(minWidth: self.enterpriseFieldMinWidth)
+                                    .layoutPriority(1)
+                            }
+                            LabeledContent("Client Secret") {
+                                SecureField("", text: self.$clientSecret)
+                                    .frame(minWidth: self.enterpriseFieldMinWidth)
+                                    .layoutPriority(1)
+                            }
+                            Text("Create an OAuth App in your enterprise server. Callback URL: http://127.0.0.1:53682/callback")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text("Uses the built-in GitHub.com OAuth app.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack(spacing: 8) {
+                            if self.session.account == .loggingIn {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .frame(width: self.spinnerSize, height: self.spinnerSize)
+                            }
+                            Button(self.session.account == .loggingIn ? "Signing in…" : self.hostMode == .enterprise ? "Sign in to Enterprise" : "Sign in to GitHub.com") {
+                                self.login()
+                            }
+                            .disabled(self.session.account == .loggingIn)
+                            .buttonStyle(.borderedProminent)
+                        }
+                        Text("Uses browser-based OAuth. Tokens are stored in the system Keychain.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    HStack(spacing: 8) {
-                        if self.session.account == .loggingIn {
-                            ProgressView()
-                                .controlSize(.small)
-                                .frame(width: self.spinnerSize, height: self.spinnerSize)
-                        }
-                        Button(self.session.account == .loggingIn ? "Signing in…" : self.hostMode == .enterprise ? "Sign in to Enterprise" : "Sign in to GitHub.com") {
-                            self.login()
-                        }
-                        .disabled(self.session.account == .loggingIn)
-                        .buttonStyle(.borderedProminent)
-                    }
-                    Text("Uses browser-based OAuth. Tokens are stored in the system Keychain.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -148,6 +192,7 @@ struct AccountSettingsView: View {
                     self.clientSecret = RepoBarAuthDefaults.clientSecret
                 }
             }
+            self.authMethod = self.session.settings.authMethod
         }
         .task(id: self.session.account) {
             guard case .loggedIn = self.session.account else {
@@ -199,6 +244,8 @@ struct AccountSettingsView: View {
                     host: self.session.settings.enterpriseHost ?? self.session.settings.githubHost,
                     loopbackPort: self.session.settings.loopbackPort
                 )
+                self.session.settings.authMethod = .oauth
+                self.appState.persistSettings()
                 self.session.hasStoredTokens = true
                 if let user = try? await appState.github.currentUser() {
                     self.session.account = .loggedIn(user)
@@ -212,6 +259,41 @@ struct AccountSettingsView: View {
                 self.session.lastError = error.userFacingMessage
             }
         }
+    }
+
+    private func loginWithPAT() {
+        Task { @MainActor in
+            self.isValidatingPAT = true
+            self.validationError = nil
+
+            let host: URL
+            if self.hostMode == .enterprise {
+                guard let enterpriseURL = self.normalizedEnterpriseHost() else {
+                    self.validationError = "Enterprise Base URL must be a valid https:// URL with a trusted certificate."
+                    self.isValidatingPAT = false
+                    return
+                }
+                self.session.settings.enterpriseHost = enterpriseURL
+                host = enterpriseURL
+            } else {
+                self.session.settings.enterpriseHost = nil
+                host = URL(string: "https://github.com")!
+            }
+
+            await self.appState.loginWithPAT(self.patInput, host: host)
+            self.isValidatingPAT = false
+
+            if case .loggedIn = self.session.account {
+                self.patInput = ""
+            }
+        }
+    }
+
+    private func createTokenURL() -> URL {
+        let baseHost = self.hostMode == .enterprise
+            ? (self.normalizedEnterpriseHost()?.absoluteString ?? "https://github.com")
+            : "https://github.com"
+        return URL(string: "\(baseHost)/settings/tokens/new?scopes=repo,read:org&description=RepoBar")!
     }
 
     private func normalizedEnterpriseHost() -> URL? {

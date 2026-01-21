@@ -53,7 +53,8 @@ final class AppState {
         Task {
             await self.github.setTokenProvider { @Sendable [weak self] () async throws -> OAuthTokens? in
                 guard let self else { return nil }
-                if self.session.settings.authMethod == .pat {
+                let authMethod = await MainActor.run { self.session.settings.authMethod }
+                if authMethod == .pat {
                     if let pat = try? tokenStore.loadPAT() {
                         return OAuthTokens(accessToken: pat, refreshToken: "", expiresAt: nil)
                     }

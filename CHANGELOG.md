@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-01-21
 
 - macOS: add “Show only my repositories” toggle (owner filter) for repo lists and search.
 - macOS: fix the toggle to reset to “show all” when disabled; disable it when signed out.

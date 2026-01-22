@@ -2,24 +2,27 @@
 
 ## 0.2.0 - 2026-01-21
 
-- macOS: add “Show only my repositories” toggle (owner filter) for repo lists and search.
-- macOS: fix the toggle to reset to “show all” when disabled; disable it when signed out.
-- macOS: fix commit links to respect GitHub Enterprise host (#9).
-- macOS: add GitHub.com vs Enterprise login picker with OAuth help text (#4).
-- macOS: show OAuth errors in Accounts sign-in UI (#6).
-- macOS: add token status checks + forced refresh buttons in Settings for debugging auth issues.
-- macOS: prevent token check/refresh from hanging; add timeouts and diagnostics logging.
-- macOS: detect auth failures (401/refresh errors) and log out cleanly with a clearer message.
-- macOS: preserve keychain access groups in signed builds so app + CLI share tokens (#16, thanks @jj3ny).
-- macOS: add Personal Access Token authentication with persistence + logout fixes (#21, thanks @kkiermasz).
-- macOS: keep the menu open after pin/unpin/hide/move actions (#25, thanks @bahag-chaurasiak).
-- macOS: make Local Projects scan depth configurable (default 4) (#11, thanks @shunkakinoki).
-- macOS: allow importing GitHub CLI tokens with host matching and no refresh loop (#24, thanks @bahag-chaurasiak).
-- macOS: stabilize repo settings autocomplete (no spinner layout wiggle), widen the dropdown, show repo stats/badges, fix filtering/hover/scroll, and anchor/size the dropdown to results (no bounce on shrink).
-- macOS: widen Enterprise Base URL field and shrink auth progress indicators to avoid layout jumps.
+- Fix the menu getting stuck on “Loading repositories…” by staging the initial repo list load.
+- Fix menubar clicks doing nothing by attaching the status item via a fallback path.
+- Add Personal Access Token authentication with persistence + logout fixes (#21, thanks @kkiermasz).
+- Add GitHub.com vs Enterprise login picker with OAuth help text (#4).
+- Show OAuth errors in Accounts sign-in UI (#6).
+- Add token status checks + forced refresh buttons in Settings for debugging auth issues.
+- Prevent token check/refresh from hanging; add timeouts and diagnostics logging.
+- Detect auth failures (401/refresh errors) and log out cleanly with a clearer message.
+- Preserve keychain access groups in signed builds so app + CLI share tokens (#16, thanks @jj3ny).
+- Allow importing GitHub CLI tokens with host matching and no refresh loop (#24, thanks @bahag-chaurasiak).
+- Surface a clear error when the OAuth loopback port is already in use (#17, thanks @kiranjd).
+- Add “Show only my repositories” toggle (owner filter) for repo lists and search.
+- Fix the toggle to reset to “show all” when disabled; disable it when signed out.
+- Fix commit links to respect GitHub Enterprise host (#9).
+- Make pinned/hidden repo matching case-insensitive (fixes private repo pinning edge cases).
+- Keep the menu open after pin/unpin/hide/move actions (#25, thanks @bahag-chaurasiak).
+- Make Local Projects scan depth configurable (default 4) (#11, thanks @shunkakinoki).
+- Stabilize repo settings autocomplete (no spinner layout wiggle), widen the dropdown, show repo stats/badges, fix filtering/hover/scroll, and anchor/size the dropdown to results (no bounce on shrink).
+- Widen Enterprise Base URL field and shrink auth progress indicators to avoid layout jumps.
+- Derive activity commit links from repo URL when event repo name is missing or malformed.
 - iOS: update app icon + logo assets.
-- macOS: derive activity commit links from repo URL when event repo name is missing or malformed.
-- macOS: surface a clear error when the OAuth loopback port is already in use (#17, thanks @kiranjd).
 
 ## 0.1.2 - 2025-12-31
 

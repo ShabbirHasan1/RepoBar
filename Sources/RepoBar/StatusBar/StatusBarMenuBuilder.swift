@@ -315,13 +315,13 @@ final class StatusBarMenuBuilder {
 
         var models: [RepositoryDisplayModel] = []
         for localStatus in localRepos {
-            if let fullName = localStatus.fullName?.lowercased(),
-               let existingModel = displayIndex[fullName] {
-                models.append(existingModel)
-            } else {
+            guard let fullName = localStatus.fullName?.lowercased(),
+                  let existingModel = displayIndex[fullName] else {
                 let model = RepositoryDisplayModel(localStatus: localStatus, now: now)
                 models.append(model)
+                continue
             }
+            models.append(existingModel)
         }
 
         let limit = settings.repoList.displayLimit

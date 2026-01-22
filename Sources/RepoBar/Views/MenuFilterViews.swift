@@ -7,15 +7,30 @@ struct MenuRepoFiltersView: View {
     private var availableFilters: [MenuRepoSelection] {
         if session.account.isLoggedIn {
             return MenuRepoSelection.allCases
-        } else {
-            // Only local filter when logged out (All/Pinned/Work require GitHub)
-            return [.local]
         }
+        // Only local filter when logged out (All/Pinned/Work require GitHub)
+        return [.local]
+    }
+
+    private var filterSelection: Binding<MenuRepoSelection> {
+        Binding(
+            get: {
+                if self.session.account.isLoggedIn { return self.session.menuRepoSelection }
+                return .local
+            },
+            set: { newValue in
+                if self.session.account.isLoggedIn {
+                    self.session.menuRepoSelection = newValue
+                } else {
+                    self.session.menuRepoSelection = .local
+                }
+            }
+        )
     }
 
     var body: some View {
         HStack(spacing: 1) {
-            Picker("Filter", selection: self.$session.menuRepoSelection) {
+            Picker("Filter", selection: self.filterSelection) {
                 ForEach(self.availableFilters, id: \.self) { selection in
                     Text(selection.label).tag(selection)
                 }
